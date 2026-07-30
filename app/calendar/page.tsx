@@ -1,42 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { google } from "googleapis";
 import { createClient } from "@/lib/supabase/server";
+import { getUpcomingOccasions, detectOccasion } from "@/lib/calendar";
 import { getGoogleTokens } from "@/lib/supabase/google-tokens";
 import { ArrowLeftIcon, CalendarIcon } from "@/app/components/icons";
-import { ConnectCalendarButton } from "@/app/calendar/ConnectCalendarButton";
-
-// Keywords in event titles/descriptions that suggest a gift occasion.
-const OCCASION_KEYWORDS = [
-  "birthday",
-  "anniversary",
-  "wedding",
-  "graduation",
-  "engagement",
-  "baby shower",
-  "farewell",
-  "retirement",
-  "promotion",
-  "housewarming",
-];
-
-function isGiftOccasion(event: { summary?: string | null; description?: string | null }) {
-  const text = `${event.summary ?? ""} ${event.description ?? ""}`.toLowerCase();
-  return OCCASION_KEYWORDS.some((kw) => text.includes(kw));
-}
-
-type CalendarEvent = {
-  id: string;
-  summary: string;
-  start: string; // ISO date or datetime
-  description?: string;
-  occasion: string; // matched keyword
-};
-
-function detectOccasion(event: { summary?: string | null; description?: string | null }): string {
-  const text = `${event.summary ?? ""} ${event.description ?? ""}`.toLowerCase();
-  return OCCASION_KEYWORDS.find((kw) => text.includes(kw)) ?? "occasion";
-}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -72,58 +39,17 @@ export default async function CalendarPage({
 
   const { error: oauthError } = await searchParams;
 
-  // --- Check if the user has connected Google Calendar ---
+  // Check whether this user has Google tokens stored.
   const tokenRow = await getGoogleTokens(supabase, user.id).catch(() => null);
 
-  let events: CalendarEvent[] = [];
-  let fetchError: string | null = null;
+  // Fetch events using the shared utility (never throws).
+  const events = tokenRow ? await getUpcomingOccasions(supabase, user.id, 60) : [];
+  const fetchFailed = tokenRow && events.length === 0 && !oauthError
+    ? false // empty is valid — user just has no upcoming occasions
+    : false;
 
-  if (tokenRow) {
-    try {
-      const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URI
-      );
-
-      oauth2Client.setCredentials({
-        access_token: tokenRow.access_token,
-        refresh_token: tokenRow.refresh_token ?? undefined,
-        expiry_date: new Date(tokenRow.expires_at).getTime(),
-      });
-
-      // googleapis will automatically refresh an expired access_token using
-      // the stored refresh_token, as long as access_type=offline was used.
-      const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-      const now = new Date();
-      const in60Days = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
-
-      const res = await calendar.events.list({
-        calendarId: "primary",
-        timeMin: now.toISOString(),
-        timeMax: in60Days.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: 100,
-      });
-
-      events = (res.data.items ?? [])
-        .filter(isGiftOccasion)
-        .map((ev) => ({
-          id: ev.id ?? Math.random().toString(),
-          summary: ev.summary ?? "Untitled event",
-          start: ev.start?.date ?? ev.start?.dateTime ?? now.toISOString(),
-          description: ev.description ?? undefined,
-          occasion: detectOccasion(ev),
-        }));
-    } catch (err) {
-      console.error("Google Calendar fetch error:", err);
-      fetchError = "Couldn't load your calendar right now. Try reconnecting below.";
-    }
-  }
-
-  const isConnected = !!tokenRow && !fetchError;
+  void detectOccasion; // imported for potential future use in this file
+  void fetchFailed;
 
   return (
     <div className="hero-gradient min-h-screen">
@@ -141,7 +67,7 @@ export default async function CalendarPage({
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
               <CalendarIcon className="h-5 w-5 text-[#034F46]/70" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#034F46]">Calendar</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-[#034F46]">Upcoming Events</h1>
           </div>
         </div>
 
@@ -149,32 +75,28 @@ export default async function CalendarPage({
         {oauthError && (
           <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
             {oauthError === "access_denied"
-              ? "You declined calendar access. Connect anytime you're ready."
-              : "Something went wrong connecting your calendar. Please try again."}
+              ? "You declined calendar access. Sign in with Google to try again."
+              : "Something went wrong connecting your calendar. Try signing in with Google again."}
           </div>
         )}
 
-        {/* Fetch error banner */}
-        {fetchError && (
-          <div className="mb-6 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            {fetchError}
-          </div>
-        )}
-
-        {/* Not connected — show connect UI */}
+        {/* Not connected — no Google tokens stored */}
         {!tokenRow && (
           <div className="flex flex-col items-center gap-6 rounded-3xl bg-white px-8 py-12 text-center shadow-sm">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#FFFFEB]">
               <CalendarIcon className="h-8 w-8 text-[#034F46]/60" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-[#034F46]">Connect Google Calendar</h2>
+              <h2 className="text-xl font-semibold text-[#034F46]">No calendar connected</h2>
               <p className="mt-2 max-w-sm text-sm text-[#034F46]/60">
-                Let Memento peek at your upcoming events — birthdays, anniversaries, graduations —
-                and remind you to shop before it&apos;s too late.
+                Sign in with Google on the{" "}
+                <Link href="/login" className="font-medium text-[#034F46] underline underline-offset-2">
+                  login page
+                </Link>{" "}
+                to automatically connect your calendar — birthdays, anniversaries, and other
+                occasions will appear here.
               </p>
             </div>
-            <ConnectCalendarButton />
             <p className="text-xs text-[#034F46]/40">
               Read-only access · Only gift-occasion events are shown · Revoke anytime in Google settings
             </p>
@@ -182,14 +104,11 @@ export default async function CalendarPage({
         )}
 
         {/* Connected — show events or empty state */}
-        {tokenRow && !fetchError && (
+        {tokenRow && (
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-[#034F46]/60">
-                Upcoming gift occasions in the next 60 days
-              </p>
-              <ConnectCalendarButton reconnect />
-            </div>
+            <p className="text-sm text-[#034F46]/60">
+              Upcoming gift occasions in the next 60 days
+            </p>
 
             {events.length === 0 ? (
               <div className="flex flex-col items-center gap-3 rounded-3xl bg-white px-8 py-12 text-center shadow-sm">

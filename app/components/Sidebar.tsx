@@ -72,7 +72,7 @@ export function Sidebar({
             className="flex items-center gap-3 rounded-xl bg-[#FFFFEB] px-3.5 py-2.5 text-sm font-medium text-[#034F46] transition hover:bg-[#FFFFEB]/70"
           >
             <CalendarIcon className="h-[18px] w-[18px] text-[#034F46]/70" />
-            Calendar
+            Upcoming Events
           </Link>
           {STATIC_NAV_ITEMS.map(({ label, icon: Icon }) => (
             <span

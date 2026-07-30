@@ -1,6 +1,9 @@
 import Groq from "groq-sdk";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { SYSTEM_PROMPT, STAGE_LABELS, TOOLS } from "@/lib/agent";
 import { runTool } from "@/lib/gifts";
+import { getUpcomingOccasions, formatEventsForAgent } from "@/lib/calendar";
 
 const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const MAX_TOOL_ROUNDS = 6;
@@ -59,6 +62,26 @@ export async function POST(req: Request) {
 
   const { messages } = (await req.json()) as { messages: IncomingMessage[] };
 
+  // Silently look up the signed-in user and inject their upcoming calendar
+  // occasions as a system-level context block so the agent can proactively
+  // reference them. Fails gracefully — chat still works without calendar access.
+  let calendarContext = "";
+  try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const events = await getUpcomingOccasions(supabase, user.id, 30);
+      calendarContext = formatEventsForAgent(events);
+    }
+  } catch {
+    // Non-fatal — proceed without calendar context.
+  }
+
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   const encoder = new TextEncoder();
 
@@ -79,6 +102,9 @@ export async function POST(req: Request) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const convo: any[] = [
           { role: "system", content: SYSTEM_PROMPT },
+          ...(calendarContext
+            ? [{ role: "system", content: calendarContext }]
+            : []),
           ...messages.map((m) => ({ role: m.role, content: m.content })),
         ];
 
