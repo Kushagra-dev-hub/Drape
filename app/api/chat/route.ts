@@ -13,6 +13,20 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Groq returns a 429 both for short-lived burst rate limits and for a hard
+// daily token quota — the two need different messaging since only one is
+// worth retrying soon.
+function describeGroqError(err: unknown): string | null {
+  if (!(err instanceof Groq.APIError) || err.status !== 429) return null;
+  const raw = err.message || "";
+  if (/tokens per day/i.test(raw)) {
+    const match = raw.match(/try again in (?:(\d+)m)?([\d.]+)s/i);
+    const wait = match ? `${match[1] ? `${match[1]}m ` : ""}${Math.ceil(Number(match[2]))}s` : null;
+    return `Memento's hit its daily usage limit for now${wait ? ` — try again in about ${wait}` : ", please try again later"}.`;
+  }
+  return "Memento's getting a lot of requests right now — give it a few seconds and try again.";
+}
+
 // Groq's open-weight models occasionally emit a malformed tool call
 // (e.g. "<function=...>" text instead of a structured tool_calls block),
 // which the API rejects with a 400 tool_use_failed. It's usually a
@@ -137,6 +151,7 @@ export async function POST(req: Request) {
         send({
           type: "error",
           message:
+            describeGroqError(err) ??
             "I got tripped up putting that together — mind trying that again, maybe with a bit less in one message?",
         });
         finish();

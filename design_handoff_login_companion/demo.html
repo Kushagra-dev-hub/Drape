@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Login companion — reference integration</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Quicksand:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#fdfcff;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#241b3d;-webkit-font-smoothing:antialiased}
+  a{color:#6842c2;text-decoration:none}a:hover{color:#4f2fa3}
+  input::placeholder{color:#a79ebb}
+  .page{display:flex;min-height:100vh}
+  /* mascot panel — 25% of the page, mascot centred, form keeps the focus */
+  .panel{position:relative;width:25%;min-width:320px;max-width:430px;overflow:hidden;
+    background:linear-gradient(168deg,#cdb8f0 0%,#b295e4 52%,#9573d4 100%)}
+  .panel .glow{position:absolute;left:-30%;top:-14%;width:160%;height:70%;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(255,255,255,.5),rgba(255,255,255,0))}
+  .panel .ring{position:absolute;left:50%;top:52%;border-radius:50%;border:1px solid rgba(255,255,255,.42)}
+  .panel .ring.a{width:520px;height:520px;margin:-260px 0 0 -260px}
+  .panel .ring.b{width:360px;height:360px;margin:-180px 0 0 -180px;border-color:rgba(255,255,255,.3)}
+  .panel .floor{position:absolute;left:0;right:0;bottom:0;height:34%;
+    background:linear-gradient(180deg,rgba(96,63,158,0),rgba(84,52,143,.3))}
+  /* ambient sparkles are page decoration, not part of the component */
+  .spk{position:absolute;background:radial-gradient(closest-side,#fff,#d3bef5);
+    clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);
+    animation:twinkle 4s ease-in-out infinite, drift 12s ease-in-out infinite alternate}
+  @keyframes twinkle{0%,100%{opacity:.15;transform:scale(.7) rotate(0)}50%{opacity:.7;transform:scale(1) rotate(25deg)}}
+  @keyframes drift{from{translate:0 0}to{translate:14px -22px}}
+  mascot-companion{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%)}
+  .caption{position:absolute;left:0;right:0;bottom:38px;text-align:center;font-family:Quicksand,system-ui,sans-serif;
+    font-size:12.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#f0e7ff}
+  .form{flex:1;display:flex;align-items:center;justify-content:center;padding:48px;border-left:1px solid #efe9f9}
+  .col{width:100%;max-width:392px}
+  .brand{display:flex;align-items:center;gap:9px;margin-bottom:42px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .mark{width:22px;height:22px;background:linear-gradient(150deg,#8b62dd,#5f3bb8);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+  h1{font-size:31px;font-weight:600;letter-spacing:-.025em;margin:0 0 9px}
+  .sub{font-size:15px;line-height:1.6;color:#6f6486;margin-bottom:34px}
+  .fields{display:flex;flex-direction:column;gap:18px}
+  label{display:block;font-size:12.5px;font-weight:600;color:#6f6486;margin-bottom:7px}
+  input{width:100%;box-sizing:border-box;height:48px;padding:0 14px;border:1px solid #e6e0f2;border-radius:12px;
+    background:#fff;font-family:inherit;font-size:15px;color:#241b3d;outline:none;transition:border-color .18s,box-shadow .18s}
+  input:focus{border-color:#8b62dd;box-shadow:0 0 0 4px rgba(139,98,221,.13)}
+  .pwrow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;font-size:12.5px;font-weight:600}
+  button[type=submit]{height:50px;margin-top:4px;width:100%;border:0;border-radius:12px;color:#fff;cursor:pointer;
+    background:linear-gradient(180deg,#7c56d3,#6842c2);font-family:inherit;font-size:15.5px;font-weight:600;
+    box-shadow:0 8px 20px rgba(104,66,194,.26);transition:transform .18s,filter .18s,box-shadow .18s}
+  button[type=submit]:hover{transform:translateY(-1px);filter:brightness(1.07)}
+  .err{display:none;gap:8px;padding:11px 13px;border-radius:11px;background:#fdf2f4;font-size:13.5px;color:#a34158}
+  .err.on{display:flex}
+  .hint{margin-top:30px;padding-top:18px;border-top:1px solid #f2edfb;font-size:12px;line-height:1.6;color:#a79ebb}
+</style>
+<script type="module" src="./mascot-companion.js"></script>
+</head>
+<body>
+<div class="page">
+  <div class="panel">
+    <div class="glow"></div><div class="ring a"></div><div class="ring b"></div><div class="floor"></div>
+    <div class="spk" style="left:14%;top:22%;width:26px;height:26px"></div>
+    <div class="spk" style="left:76%;top:16%;width:18px;height:18px;animation-delay:.8s,1s"></div>
+    <div class="spk" style="left:8%;top:58%;width:14px;height:14px;animation-delay:1.6s,0s"></div>
+    <div class="spk" style="left:82%;top:64%;width:22px;height:22px;animation-delay:.4s,2s"></div>
+    <mascot-companion id="pip" size="300" state="idle" assets="./"></mascot-companion>
+    <div class="caption" id="cap">floating</div>
+  </div>
+
+  <div class="form">
+    <div class="col">
+      <div class="brand"><div class="mark"></div>Aster</div>
+      <h1>Welcome back</h1>
+      <div class="sub">Sign in to continue to your workspace.</div>
+      <form id="f">
+        <div class="fields">
+          <div>
+            <label for="email">Email</label>
+            <input id="email" type="email" autocomplete="off" placeholder="you@company.com">
+          </div>
+          <div>
+            <div class="pwrow"><label for="pw" style="margin:0">Password</label><a href="#reset">Forgot?</a></div>
+            <input id="pw" type="password" autocomplete="off" placeholder="••••••••">
+          </div>
+          <div class="err" id="err"></div>
+          <button type="submit">Log in</button>
+        </div>
+        <div class="hint">Demo: any email, and a password of 8+ characters signs you in.</div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  const pip = document.getElementById('pip'), cap = document.getElementById('cap');
+  const email = document.getElementById('email'), pw = document.getElementById('pw');
+  const err = document.getElementById('err'), btn = document.querySelector('button[type=submit]');
+  const CAPTION = { idle:'floating', email:'watching along', typing:'watching along', password:'not looking',
+    hover:'ready when you are', submit:'checking', success:'welcome back', error:"let's try again" };
+
+  // the whole integration: map form events onto companion states
+  const set = (s) => { pip.state = s; cap.textContent = CAPTION[s] || 'floating'; };
+  let typeTimer;
+  email.addEventListener('focus', () => set('email'));
+  pw.addEventListener('focus', () => set('password'));
+  email.addEventListener('blur', () => set('idle'));
+  pw.addEventListener('blur', () => set('idle'));
+  email.addEventListener('input', () => { set('typing'); clearTimeout(typeTimer); typeTimer = setTimeout(() => set('email'), 1100); });
+  btn.addEventListener('mouseenter', () => { if (pip.state === 'idle') set('hover'); });
+  btn.addEventListener('mouseleave', () => { if (pip.state === 'hover') set('idle'); });
+  pip.addEventListener('settled', () => set(document.activeElement === pw ? 'password' : 'idle'));
+
+  document.getElementById('f').addEventListener('submit', (e) => {
+    e.preventDefault();
+    err.classList.remove('on');
+    set('submit');
+    btn.textContent = 'Signing in…';
+    setTimeout(() => {
+      btn.textContent = 'Log in';
+      if (email.value.trim() && pw.value.length >= 8) { set('success'); }
+      else {
+        err.textContent = email.value.trim() ? 'That password didn’t match. Try again?' : 'Add your email address to continue.';
+        err.classList.add('on');
+        set('error');
+      }
+    }, 1000);
+  });
+</script>
+</body>
+</html>
