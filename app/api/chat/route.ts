@@ -2,11 +2,15 @@ import Groq from "groq-sdk";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { SYSTEM_PROMPT, STAGE_LABELS, TOOLS } from "@/lib/agent";
-import { runTool } from "@/lib/gifts";
+import { runTool, type GiftCandidate } from "@/lib/gifts";
 import { getUpcomingOccasions, formatEventsForAgent } from "@/lib/calendar";
 
 const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-const MAX_TOOL_ROUNDS = 6;
+// analyze_recipient, analyze_occasion, analyze_budget, find_gifts,
+// present_gifts, write_letter, then a final text-only round — 7 is the
+// exact minimum, 8 gives one round of headroom.
+const MAX_TOOL_ROUNDS = 8;
+const FALLBACK_GIFT_COUNT = 4;
 const STAGE_PACING_MS = 450;
 const MAX_COMPLETION_RETRIES = 2;
 
@@ -108,7 +112,12 @@ export async function POST(req: Request) {
           ...messages.map((m) => ({ role: m.role, content: m.content })),
         ];
 
-        let lastGifts: unknown[] | null = null;
+        // candidatePool: the full pool find_gifts returned (up to 8).
+        // finalGifts: what actually gets shown — narrowed by present_gifts,
+        // defaulting to the top few of the pool if the model never calls it.
+        let candidatePool: GiftCandidate[] | null = null;
+        let finalGifts: GiftCandidate[] | null = null;
+        let letterContent: string | null = null;
 
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
           const completion = await withRetry(() =>
@@ -141,9 +150,28 @@ export async function POST(req: Request) {
                 args = {};
               }
 
-              const result = runTool(toolName, args);
-              if (toolName === "find_gifts") {
-                lastGifts = (result as { items: unknown[] }).items;
+              let result: unknown;
+              if (toolName === "present_gifts") {
+                // Local to this request's state (candidatePool) — doesn't go
+                // through runTool, which stays a pure function of its args.
+                const ids = Array.isArray(args.gift_ids)
+                  ? (args.gift_ids as unknown[]).map((id) => String(id))
+                  : [];
+                const chosen = candidatePool?.filter((g) => ids.includes(g.id)) ?? [];
+                if (chosen.length > 0) finalGifts = chosen;
+                result = { ok: true, shown: chosen.length };
+              } else if (toolName === "write_letter") {
+                const letter = typeof args.letter === "string" ? args.letter.trim() : "";
+                if (letter) letterContent = letter;
+                result = { ok: true };
+              } else {
+                result = await runTool(toolName, args);
+                if (toolName === "find_gifts") {
+                  candidatePool = (result as { items: GiftCandidate[] }).items;
+                  // Safe default so a card set still shows even if the model
+                  // never calls present_gifts.
+                  finalGifts = candidatePool.slice(0, FALLBACK_GIFT_COUNT);
+                }
               }
 
               convo.push({
@@ -158,8 +186,11 @@ export async function POST(req: Request) {
           }
 
           send({ type: "message", content: message.content ?? "" });
-          if (lastGifts && lastGifts.length > 0) {
-            send({ type: "gifts", items: lastGifts });
+          if (finalGifts && finalGifts.length > 0) {
+            send({ type: "gifts", items: finalGifts });
+          }
+          if (letterContent) {
+            send({ type: "letter", content: letterContent });
           }
           send({ type: "done" });
           finish();

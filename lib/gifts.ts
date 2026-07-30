@@ -1,3 +1,6 @@
+import { searchCatalog, type LiveProduct } from "./ucp";
+import { MERCHANTS, type Merchant } from "./merchants";
+
 export type GiftCandidate = {
   id: string;
   name: string;
@@ -7,7 +10,17 @@ export type GiftCandidate = {
   deliveryDays: number;
   tags: string[];
   emoji: string;
+  imageUrl?: string;
+  checkoutUrl?: string;
 };
+
+// Real catalog search doesn't return shipping estimates — this is a known
+// approximation for live results, named so it's greppable rather than magic.
+const LIVE_DELIVERY_PLACEHOLDER_DAYS = 5;
+
+// find_gifts returns this many scored candidates, not just the final
+// display count — see the comment above the sort in findGifts for why.
+const CANDIDATE_POOL_SIZE = 8;
 
 const CATALOG: GiftCandidate[] = [
   { id: "mystery-novel-set", name: "3-Book Mystery Novel Boxset", category: "books", price: 950, merchant: "Bound & Co.", deliveryDays: 2, tags: ["books", "mystery", "reading", "novels"], emoji: "📚" },
@@ -35,7 +48,7 @@ const RECIPIENT_MEMORY: Record<string, { item: string; occasion: string; year: n
   mom: [{ item: "Scented Candle Set", occasion: "Mother's Day", year: 2025 }],
 };
 
-export function runTool(name: string, args: Record<string, unknown>) {
+export async function runTool(name: string, args: Record<string, unknown>) {
   switch (name) {
     case "analyze_recipient":
       return analyzeRecipient(args);
@@ -44,7 +57,7 @@ export function runTool(name: string, args: Record<string, unknown>) {
     case "analyze_budget":
       return analyzeBudget(args);
     case "find_gifts":
-      return findGifts(args);
+      return await findGifts(args);
     default:
       return { error: `Unknown tool: ${name}` };
   }
@@ -84,7 +97,106 @@ function analyzeBudget(args: Record<string, unknown>) {
   return { amount, currency: "INR", tier };
 }
 
-function findGifts(args: Record<string, unknown>) {
+type ScoredGift = { gift: GiftCandidate; score: number };
+
+// Exact whole-word matches count for more than a fuzzy substring overlap.
+// Without this, a coincidental substring hit (e.g. "neck" inside the word
+// "necklace") ties with a genuine exact match ("necklace" === "necklace")
+// and can win a price tie-break it has no business winning.
+function scoreWords(words: string[], interests: string[]): number {
+  let score = 0;
+  for (const word of words) {
+    if (interests.includes(word)) {
+      score += 2;
+    } else if (interests.some((i) => word.includes(i) || i.includes(word))) {
+      score += 1;
+    }
+  }
+  return score;
+}
+
+function scoreMockCatalog(interests: string[], maxBudget: number, excludeNames: string[]): ScoredGift[] {
+  const affordable = CATALOG.filter((g) => g.price <= maxBudget).filter(
+    (g) => !excludeNames.some((ex) => ex && g.name.toLowerCase().includes(ex))
+  );
+
+  return affordable.map((gift) => ({ gift, score: scoreWords(gift.tags, interests) }));
+}
+
+function mapLiveProductToGift(
+  product: LiveProduct,
+  merchant: Merchant,
+  maxBudget: number,
+  excludeNames: string[]
+): GiftCandidate | null {
+  if (product.variants.length === 0) return null;
+
+  const cheapest = product.variants.reduce((min, v) => (v.price.amount < min.price.amount ? v : min));
+  if (cheapest.price.currency !== "INR") return null;
+
+  const price = Math.round(cheapest.price.amount / 100);
+  if (price > maxBudget) return null;
+
+  const titleLower = product.title.toLowerCase();
+  if (excludeNames.some((ex) => ex && titleLower.includes(ex))) return null;
+
+  return {
+    id: product.id,
+    name: product.title,
+    category: "live",
+    price,
+    merchant: merchant.name,
+    deliveryDays: LIVE_DELIVERY_PLACEHOLDER_DAYS,
+    tags: [],
+    emoji: "🎁",
+    imageUrl: cheapest.media?.[0]?.url,
+    checkoutUrl: cheapest.checkout_url,
+  };
+}
+
+async function scoreLiveMerchants(
+  interests: string[],
+  maxBudget: number,
+  excludeNames: string[]
+): Promise<ScoredGift[]> {
+  // Two interests keep the query focused — a longer joined string dilutes
+  // relevance fast against a single-category merchant catalog.
+  const query = interests.slice(0, 2).join(" ");
+
+  const results = await Promise.allSettled(
+    MERCHANTS.map(async (merchant) => {
+      try {
+        return { merchant, products: await searchCatalog(merchant.endpoint, query) };
+      } catch (err) {
+        // A dead/slow merchant must never break the chat response — log
+        // server-side only and fall back to mock results via the merge below.
+        console.error(`[ucp] ${merchant.id} search failed:`, err);
+        return { merchant, products: [] as LiveProduct[] };
+      }
+    })
+  );
+
+  const scored: ScoredGift[] = [];
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    const { merchant, products } = result.value;
+    for (const product of products) {
+      const gift = mapLiveProductToGift(product, merchant, maxBudget, excludeNames);
+      if (!gift) continue;
+      // Strip numbers/punctuation and drop short tokens ("c", "e", "16%")
+      // before matching — real ingredient/spec tokens in product titles
+      // otherwise substring-collide with unrelated interests (e.g. the "c"
+      // in "Vitamin C Serum" matching inside "coffee").
+      const titleWords = (product.title.toLowerCase().match(/[a-z]+/g) ?? []).filter(
+        (word) => word.length >= 3
+      );
+      scored.push({ gift, score: scoreWords(titleWords, interests) });
+    }
+  }
+  return scored;
+}
+
+async function findGifts(args: Record<string, unknown>) {
   const interests = Array.isArray(args.interests)
     ? (args.interests as string[]).map((i) => String(i).toLowerCase())
     : [];
@@ -94,20 +206,21 @@ function findGifts(args: Record<string, unknown>) {
     ? (args.exclude_names as string[]).map((n) => String(n).toLowerCase())
     : [];
 
-  const affordable = CATALOG.filter((g) => g.price <= maxBudget).filter(
-    (g) => !excludeNames.some((ex) => ex && g.name.toLowerCase().includes(ex))
-  );
+  const mockScored = scoreMockCatalog(interests, maxBudget, excludeNames);
+  const liveScored = await scoreLiveMerchants(interests, maxBudget, excludeNames);
 
-  const scored = affordable
-    .map((gift) => {
-      const matchCount = gift.tags.filter((tag) =>
-        interests.some((i) => tag.includes(i) || i.includes(tag))
-      ).length;
-      return { gift, matchCount };
-    })
-    .sort((a, b) => b.matchCount - a.matchCount || a.gift.price - b.gift.price);
-
-  const items = scored.slice(0, 4).map((s) => s.gift);
+  // Merge, don't rank live-first: an on-topic live product only outranks a
+  // mock one when it's actually as good or better a match.
+  //
+  // Returns a wider candidate pool (not just the final 4) — keyword scoring
+  // is a coarse relevance filter, not a final judge (e.g. it can't tell a
+  // sleep-themed kids' book from an actual sleep product). The agent's
+  // present_gifts tool call (see lib/agent.ts / app/api/chat/route.ts) does
+  // the real narrowing using its own judgment over this pool.
+  const items = [...liveScored, ...mockScored]
+    .sort((a, b) => b.score - a.score || a.gift.price - b.gift.price)
+    .slice(0, CANDIDATE_POOL_SIZE)
+    .map((s) => s.gift);
 
   return { items };
 }

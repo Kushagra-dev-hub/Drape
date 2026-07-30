@@ -11,11 +11,13 @@ import {
   insertMessage,
   listConversations,
   updateMessageGifts,
+  updateMessageLetter,
   type ConversationSummary,
 } from "@/lib/supabase/conversations";
 import { GiftCard } from "./components/GiftCard";
+import { LetterCard } from "./components/LetterCard";
 import { SendIcon } from "./components/icons";
-import { Navbar } from "./components/Navbar";
+import { Navbar, type Profile } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { ThinkingStages, type Stage } from "./components/ThinkingStages";
 
@@ -35,20 +37,29 @@ type Message = {
   role: Role;
   content: string;
   gifts?: GiftCandidate[];
+  letter?: string;
 };
 
 const nextId = () => crypto.randomUUID();
+
+function deriveProfile(user: { email?: string | null; user_metadata?: { full_name?: string } } | null | undefined): Profile | null {
+  if (!user) return null;
+  const name = user.user_metadata?.full_name?.trim() || user.email?.split("@")[0] || "there";
+  return { name, initial: name.charAt(0).toUpperCase() || "?" };
+}
 
 type StreamEvent =
   | { type: "stage"; tool: string; label: string; status: "active" | "done" }
   | { type: "message"; content: string }
   | { type: "gifts"; items: GiftCandidate[] }
+  | { type: "letter"; content: string }
   | { type: "done" }
   | { type: "error"; message: string };
 
 export default function Home() {
   const [supabase] = useState(() => createClient());
   const [userId, setUserId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
@@ -75,6 +86,7 @@ export default function Home() {
       if (!active) return;
       const uid = data.user?.id ?? null;
       setUserId(uid);
+      setProfile(deriveProfile(data.user));
 
       if (uid) {
         let guestMessages: Message[] = [];
@@ -122,7 +134,9 @@ export default function Home() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) setUserId(session?.user?.id ?? null);
+      if (!active) return;
+      setUserId(session?.user?.id ?? null);
+      setProfile(deriveProfile(session?.user));
     });
 
     return () => {
@@ -140,6 +154,16 @@ export default function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, stages]);
 
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setUserId(null);
+    setProfile(null);
+    setConversations([]);
+    setConversationId(null);
+    setMessages([]);
+    setStages([]);
+  }
+
   function handleNewChat() {
     if (isStreaming) return;
     setConversationId(null);
@@ -155,7 +179,15 @@ export default function Home() {
     setIsHeroExiting(false);
     try {
       const stored = await getConversationMessages(supabase, id);
-      setMessages(stored.map((m) => ({ id: m.id, role: m.role, content: m.content, gifts: m.gifts ?? undefined })));
+      setMessages(
+        stored.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          gifts: m.gifts ?? undefined,
+          letter: m.letter ?? undefined,
+        }))
+      );
     } catch (err) {
       console.error("Failed to load conversation", err);
       setMessages([]);
@@ -199,6 +231,17 @@ export default function Home() {
         if (userId && activeConversationId) {
           updateMessageGifts(supabase, assistantId, event.items).catch((err) =>
             console.error("Failed to persist gifts", err)
+          );
+        }
+        break;
+      }
+      case "letter": {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, letter: event.content } : m))
+        );
+        if (userId && activeConversationId) {
+          updateMessageLetter(supabase, assistantId, event.content).catch((err) =>
+            console.error("Failed to persist letter", err)
           );
         }
         break;
@@ -324,15 +367,17 @@ export default function Home() {
         open={sidebarOpen}
         onToggle={() => setSidebarOpen((prev) => !prev)}
         signedIn={Boolean(userId)}
+        profile={profile}
         conversations={conversations}
         activeConversationId={conversationId}
         newChatDisabled={isStreaming}
         onNewChat={handleNewChat}
         onSelectConversation={handleSelectConversation}
+        onLogout={handleLogout}
       />
 
       <div className="hero-gradient flex min-h-0 flex-1 flex-col">
-        <Navbar sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+        <Navbar profile={profile} />
 
         <main className="flex min-h-0 flex-1 justify-center">
           <div className="flex min-h-0 w-full max-w-3xl flex-col overflow-hidden px-4 py-8">
@@ -405,6 +450,7 @@ export default function Home() {
                         ))}
                       </div>
                     )}
+                    {m.letter && <LetterCard letter={m.letter} />}
                   </div>
                 ))}
 
