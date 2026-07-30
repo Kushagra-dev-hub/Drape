@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "sleep-company": {
+      "type": "http",
+      "url": "https://thesleepcompanystore.myshopify.com/api/ucp/mcp"
+    }
+  }
+}

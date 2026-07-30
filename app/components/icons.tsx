@@ -108,6 +108,43 @@ export function GoogleIcon({ className = "h-[18px] w-[18px]" }: IconProps) {
   );
 }
 
+export function ChatBubbleIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="2.5" y="4" width="15" height="10" rx="2.5" />
+      <path d="M7 14.5v2.7l3.2-2.7" />
+    </svg>
+  );
+}
+
+export function LogoutIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M8 17.5H4.5a1.5 1.5 0 0 1-1.5-1.5V4a1.5 1.5 0 0 1 1.5-1.5H8" />
+      <path d="M13 14l4-4-4-4" />
+      <line x1="17" y1="10" x2="7.5" y2="10" />
+    </svg>
+  );
+}
+
+export function MailIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="2.5" y="4.5" width="15" height="11" rx="2" />
+      <path d="M3 5.5 10 11 17 5.5" />
+    </svg>
+  );
+}
+
+export function CopyIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="7" y="7" width="10.5" height="10.5" rx="2" />
+      <path d="M12.5 7V4.5A1.5 1.5 0 0 0 11 3H4a1.5 1.5 0 0 0-1.5 1.5V12A1.5 1.5 0 0 0 4 13.5h2.5" />
+    </svg>
+  );
+}
+
 export function SendIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className={className}>

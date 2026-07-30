@@ -12,6 +12,7 @@ export type StoredMessage = {
   role: "user" | "assistant";
   content: string;
   gifts: GiftCandidate[] | null;
+  letter: string | null;
 };
 
 export async function listConversations(supabase: SupabaseClient): Promise<ConversationSummary[]> {
@@ -30,7 +31,7 @@ export async function getConversationMessages(
 ): Promise<StoredMessage[]> {
   const { data, error } = await supabase
     .from("messages")
-    .select("id, role, content, gifts")
+    .select("id, role, content, gifts, letter")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
 
@@ -61,6 +62,7 @@ export async function insertMessage(
     role: "user" | "assistant";
     content: string;
     gifts?: GiftCandidate[] | null;
+    letter?: string | null;
   }
 ) {
   const { error } = await supabase.from("messages").insert({
@@ -69,6 +71,7 @@ export async function insertMessage(
     role: message.role,
     content: message.content,
     gifts: message.gifts ?? null,
+    letter: message.letter ?? null,
   });
   if (error) throw error;
 }
@@ -82,13 +85,24 @@ export async function updateMessageGifts(
   if (error) throw error;
 }
 
+export async function updateMessageLetter(supabase: SupabaseClient, messageId: string, letter: string) {
+  const { error } = await supabase.from("messages").update({ letter }).eq("id", messageId);
+  if (error) throw error;
+}
+
 // Moves a guest's local, unsaved chat into the account the moment they log in,
 // so switching from anonymous to signed-in never drops the conversation in progress.
 export async function importConversation(
   supabase: SupabaseClient,
   userId: string,
   title: string,
-  messages: { id: string; role: "user" | "assistant"; content: string; gifts?: GiftCandidate[] | null }[]
+  messages: {
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    gifts?: GiftCandidate[] | null;
+    letter?: string | null;
+  }[]
 ): Promise<ConversationSummary> {
   const conversation = await createConversation(supabase, userId, title);
 
@@ -99,6 +113,7 @@ export async function importConversation(
       role: m.role,
       content: m.content,
       gifts: m.gifts ?? null,
+      letter: m.letter ?? null,
     });
   }
 

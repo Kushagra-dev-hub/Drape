@@ -1,5 +1,10 @@
 -- Run this once in the Supabase dashboard: SQL Editor -> New query -> paste -> Run.
 -- Creates conversations + messages tables, scoped to each signed-in user via RLS.
+--
+-- Already ran this before the personalized-letter feature (2026-07-30)? The
+-- `create policy` statements below aren't idempotent and will error on a
+-- second full run — just run this one line instead:
+--   alter table public.messages add column if not exists letter text;
 
 create table if not exists public.conversations (
   id uuid primary key default gen_random_uuid(),
@@ -15,8 +20,13 @@ create table if not exists public.messages (
   role text not null check (role in ('user', 'assistant')),
   content text not null,
   gifts jsonb,
+  letter text,
   created_at timestamptz not null default now()
 );
+
+-- Safe to run even if this table already exists from before the letter
+-- feature — `add column if not exists` is a no-op on a fresh table.
+alter table public.messages add column if not exists letter text;
 
 create index if not exists messages_conversation_id_idx on public.messages (conversation_id);
 create index if not exists conversations_user_id_updated_at_idx on public.conversations (user_id, updated_at desc);

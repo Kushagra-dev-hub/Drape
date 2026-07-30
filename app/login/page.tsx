@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ArrowLeftIcon } from "@/app/components/icons";
 
@@ -66,6 +66,12 @@ export default function LoginPage() {
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "signup") {
+      setMode("signup");
+    }
+  }, []);
 
   const copy = COPY[mode];
   const isSignup = mode === "signup";
