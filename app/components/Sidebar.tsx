@@ -114,64 +114,67 @@ export function Sidebar({
     setModalOpen(true);
   };
 
-  const userMenuPopover = signedIn && profile && menuOpen && (
-    <div className="absolute bottom-14 left-3 z-50 w-64 rounded-2xl border border-white/10 bg-[#292929] p-2 text-white shadow-2xl backdrop-blur-xl animate-fade-in">
-      {/* Top User Lockup */}
-      <button
-        type="button"
-        onClick={openProfileModal}
-        className="flex w-full items-center justify-between gap-3 rounded-xl p-2 text-left transition hover:bg-white/10"
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#B89762] text-sm font-semibold text-white">
-            {profile.initial}
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-semibold text-white">{profile.name}</span>
-            <span className="truncate text-xs text-white/50">{profile.email || "Free Account"}</span>
-          </div>
-        </div>
-        <ChevronRightIcon className="h-4 w-4 shrink-0 text-white/40" />
-      </button>
-
-      <div className="my-1.5 h-px bg-white/10" />
-
-      {/* Menu Options */}
-      <div className="flex flex-col gap-0.5">
+  const renderUserMenuPopover = (positionClass: string) =>
+    signedIn &&
+    profile &&
+    menuOpen && (
+      <div className={`absolute z-50 w-64 rounded-2xl border border-[#034F46]/15 bg-white p-2 text-[#034F46] shadow-xl shadow-[#034F46]/10 animate-fade-in ${positionClass}`}>
+        {/* Top User Lockup */}
         <button
           type="button"
           onClick={openProfileModal}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-white/90 transition hover:bg-white/10"
+          className="flex w-full items-center justify-between gap-3 rounded-xl p-2 text-left transition hover:bg-[#FFFFEB]"
         >
-          <UserIcon className="h-4 w-4 text-white/70" />
-          Profile
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#034F46] text-sm font-semibold text-[#FFFFEB]">
+              {profile.initial}
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-semibold text-[#034F46]">{profile.name}</span>
+              <span className="truncate text-xs text-[#034F46]/55">{profile.email || "Free Account"}</span>
+            </div>
+          </div>
+          <ChevronRightIcon className="h-4 w-4 shrink-0 text-[#034F46]/40" />
         </button>
+
+        <div className="my-1.5 h-px bg-[#034F46]/10" />
+
+        {/* Menu Options */}
+        <div className="flex flex-col gap-0.5">
+          <button
+            type="button"
+            onClick={openProfileModal}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#034F46] transition hover:bg-[#FFFFEB]"
+          >
+            <UserIcon className="h-4 w-4 text-[#034F46]/70" />
+            Profile
+          </button>
+          <button
+            type="button"
+            onClick={openProfileModal}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#034F46] transition hover:bg-[#FFFFEB]"
+          >
+            <SettingsIcon className="h-4 w-4 text-[#034F46]/70" />
+            Settings
+          </button>
+        </div>
+
+        <div className="my-1.5 h-px bg-[#034F46]/10" />
+
+        {/* Log out option */}
         <button
           type="button"
-          onClick={openProfileModal}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-white/90 transition hover:bg-white/10"
+          onClick={() => {
+            setMenuOpen(false);
+            onLogout();
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-rose-700 transition hover:bg-rose-50"
         >
-          <SettingsIcon className="h-4 w-4 text-white/70" />
-          Settings
+          <LogoutIcon className="h-4 w-4 text-rose-600" />
+          Log out
         </button>
       </div>
-
-      <div className="my-1.5 h-px bg-white/10" />
-
-      {/* Log out option */}
-      <button
-        type="button"
-        onClick={() => {
-          setMenuOpen(false);
-          onLogout();
-        }}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-red-400 transition hover:bg-white/10"
-      >
-        <LogoutIcon className="h-4 w-4 text-red-400" />
-        Log out
-      </button>
-    </div>
-  );
+    );
 
   const profileModal = modalOpen && profile && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in">
@@ -293,7 +296,7 @@ export function Sidebar({
 
           {signedIn && profile && (
             <div ref={menuRef} className="relative">
-              {userMenuPopover}
+              {renderUserMenuPopover("bottom-12 left-14")}
               <button
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
@@ -423,7 +426,7 @@ export function Sidebar({
 
         {signedIn && profile && (
           <div ref={menuRef} className="relative shrink-0 border-t border-[#034F46]/10 px-3 py-2.5">
-            {userMenuPopover}
+            {renderUserMenuPopover("bottom-14 left-3")}
             <button
               type="button"
               onClick={() => setMenuOpen((prev) => !prev)}
