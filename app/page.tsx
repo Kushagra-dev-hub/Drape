@@ -45,7 +45,7 @@ const nextId = () => crypto.randomUUID();
 function deriveProfile(user: { email?: string | null; user_metadata?: { full_name?: string } } | null | undefined): Profile | null {
   if (!user) return null;
   const name = user.user_metadata?.full_name?.trim() || user.email?.split("@")[0] || "there";
-  return { name, initial: name.charAt(0).toUpperCase() || "?" };
+  return { name, email: user.email || undefined, initial: name.charAt(0).toUpperCase() || "?" };
 }
 
 type StreamEvent =

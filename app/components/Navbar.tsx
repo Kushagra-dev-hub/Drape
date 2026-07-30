@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-export type Profile = { name: string; initial: string };
+export type Profile = { name: string; email?: string; initial: string };
 
 type NavbarProps = {
   profile: Profile | null;
