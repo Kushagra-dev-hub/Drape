@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { GiftCandidate } from "@/lib/gifts";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -59,6 +60,13 @@ export default function Home() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+
+  // Pre-fill the input from ?q= (e.g. from calendar "Shop for a gift" links).
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) setInput(decodeURIComponent(q));
+  }, [searchParams]);
 
   useEffect(() => {
     let active = true;
