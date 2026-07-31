@@ -106,7 +106,7 @@ export default function LoginPage() {
   }
 
   const inputClass =
-    "rounded-xl border border-[#034F46]/10 bg-[#FFFFEB]/40 px-5 py-3.5 text-base text-[#034F46] placeholder:text-[#034F46]/35 focus:outline-none focus:ring-2 focus:ring-[#034F46]/20";
+    "glass-input rounded-xl px-5 py-3.5 text-[15px] text-[--color-text] placeholder:text-[--color-text-tertiary] focus:outline-none";
 
   return (
     <div className="hero-gradient relative flex h-screen overflow-hidden">
@@ -114,7 +114,7 @@ export default function LoginPage() {
 
       <Link
         href="/"
-        className="absolute left-6 top-6 z-10 flex items-center gap-1.5 text-sm font-semibold text-[#034F46]/60 transition hover:text-[#034F46] md:left-8 md:top-8"
+        className="absolute left-6 top-6 z-10 flex items-center gap-2 text-sm font-semibold text-[--color-text-secondary] transition-colors duration-200 hover:text-[--color-text] md:left-8 md:top-8"
       >
         <ArrowLeftIcon className="h-4 w-4" />
         Back
@@ -123,25 +123,28 @@ export default function LoginPage() {
       {/* Mascot panel */}
       <div className="relative hidden w-1/2 flex-col items-center justify-center md:flex">
         <mascot-companion state={pipState} size={300} assets="/mascot-companion/" suppressHydrationWarning />
-        <span className="absolute bottom-16 text-xs font-semibold uppercase tracking-[0.14em] text-[#034F46]/45">
+        <span className="absolute bottom-16 text-xs font-semibold uppercase tracking-[0.14em] text-[--color-text-tertiary]">
           {CAPTION[pipState]}
         </span>
       </div>
 
       {/* Form panel */}
       <div className="flex w-full items-center justify-center px-8 md:w-1/2">
-        <div className="flex w-full max-w-md flex-col gap-8">
+        <div className="flex w-full max-w-md flex-col gap-8 animate-fade-up">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 text-xl font-semibold tracking-tight text-[#034F46]">
+          <Link href="/" className="flex items-center gap-3 text-xl font-semibold tracking-tight text-[--color-text]">
             <Image src="/logo.png" alt="Memento" width={44} height={44} className="h-11 w-auto" priority />
             <span>Memento</span>
           </Link>
 
-          <h1 className="text-4xl font-bold tracking-tight text-[#034F46]">Welcome back</h1>
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight text-[--color-text]">Welcome back</h1>
+            <p className="mt-2 text-sm text-[--color-text-secondary]">Sign in to continue finding perfect gifts.</p>
+          </div>
 
           {/* Email / password form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            <label className="flex flex-col gap-1.5 text-base font-medium text-[#034F46]">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[--color-text]">
               Email
               <input
                 ref={emailRef}
@@ -157,7 +160,7 @@ export default function LoginPage() {
               />
             </label>
 
-            <label className="flex flex-col gap-1.5 text-base font-medium text-[#034F46]">
+            <label className="flex flex-col gap-2 text-sm font-medium text-[--color-text]">
               Password
               <input
                 ref={passwordRef}
@@ -173,33 +176,38 @@ export default function LoginPage() {
               />
             </label>
 
-            {error && <p className="text-sm font-medium text-[#a34158]">{error}</p>}
+            {error && (
+              <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-[--color-error]">
+                <span className="shrink-0">⚠</span>
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={loading}
               onMouseEnter={() => setPipState((s) => (s === "idle" ? "hover" : s))}
               onMouseLeave={() => setPipState((s) => (s === "hover" ? "idle" : s))}
-              className="mt-1 rounded-full bg-[#034F46] px-5 py-3.5 text-base font-semibold text-[#FFFFEB] transition hover:brightness-110 disabled:opacity-60"
+              className="gradient-button press-scale mt-1 rounded-full px-5 py-3.5 text-[15px] font-semibold text-[--color-text-inverse] disabled:opacity-60"
             >
               {loading ? "Signing in…" : "Login"}
             </button>
           </form>
 
           {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-[#034F46]/10" />
-            <span className="text-sm text-[#034F46]/40">or</span>
-            <div className="h-px flex-1 bg-[#034F46]/10" />
+          <div className="flex items-center gap-4">
+            <div className="h-px flex-1 bg-[--color-border]" />
+            <span className="text-xs font-medium text-[--color-text-tertiary]">or</span>
+            <div className="h-px flex-1 bg-[--color-border]" />
           </div>
 
           {/* Google — handles both sign-in and sign-up */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <button
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="flex items-center justify-center gap-3 rounded-full border border-[#034F46]/15 bg-white px-5 py-3.5 text-base font-medium text-[#034F46] shadow-sm transition hover:bg-[#034F46]/5 disabled:opacity-60"
+              className="glass-card glass-card-hover press-scale flex items-center justify-center gap-3 rounded-full px-5 py-3.5 text-[15px] font-medium text-[--color-text] disabled:opacity-60"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden>
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -210,13 +218,13 @@ export default function LoginPage() {
               Continue with Google
             </button>
 
-            <p className="text-center text-sm text-[#034F46]/50">
+            <p className="text-center text-sm text-[--color-text-secondary]">
               New to Memento?{" "}
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="font-semibold text-[#034F46] underline-offset-2 transition hover:underline disabled:opacity-50"
+                className="font-semibold text-[--color-text] underline-offset-2 transition-colors duration-200 hover:text-[--color-primary-muted] hover:underline disabled:opacity-50"
               >
                 Sign up using Google
               </button>

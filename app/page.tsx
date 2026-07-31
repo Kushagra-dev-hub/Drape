@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { GiftCandidate } from "@/lib/gifts";
 import { createClient } from "@/lib/supabase/client";
@@ -16,7 +16,7 @@ import {
 } from "@/lib/supabase/conversations";
 import { GiftCard } from "./components/GiftCard";
 import { LetterCard } from "./components/LetterCard";
-import { SendIcon } from "./components/icons";
+import { SendIcon, SparkleIcon } from "./components/icons";
 import { Navbar, type Profile } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { ThinkingStages, type Stage } from "./components/ThinkingStages";
@@ -56,7 +56,7 @@ type StreamEvent =
   | { type: "done" }
   | { type: "error"; message: string };
 
-export default function Home() {
+function HomeContent() {
   const [supabase] = useState(() => createClient());
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -362,7 +362,7 @@ export default function Home() {
   const hasStarted = messages.length > 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#FFFFEB]">
+    <div className="flex h-screen overflow-hidden bg-[--color-surface]">
       <Sidebar
         open={sidebarOpen}
         onToggle={() => setSidebarOpen((prev) => !prev)}
@@ -383,31 +383,40 @@ export default function Home() {
           <div className="flex min-h-0 w-full max-w-3xl flex-col overflow-hidden px-4 py-8">
           {!hasStarted ? (
             <div
-              className={`flex flex-1 flex-col items-center justify-center gap-6 pb-16 text-center transition-opacity duration-300 ease-out ${
-                isHeroExiting ? "opacity-0" : "opacity-100"
+              className={`flex flex-1 flex-col items-center justify-center gap-8 pb-16 text-center transition-all duration-300 ease-out ${
+                isHeroExiting ? "scale-95 opacity-0" : "opacity-100"
               }`}
             >
               <mascot-hello size={160} greeting="Hello!" assets="/mascot-hello/" suppressHydrationWarning />
-              <h1 className="whitespace-nowrap text-2xl font-bold tracking-tight text-[#034F46] sm:text-4xl md:text-5xl">
-                Who are we celebrating?
-              </h1>
+
+              <div className="flex flex-col items-center gap-3">
+                <h1 className="whitespace-nowrap text-3xl font-bold tracking-tight text-[--color-text] sm:text-4xl md:text-5xl">
+                  Who are we celebrating?
+                </h1>
+                <p className="max-w-md text-sm text-[--color-text-secondary]">
+                  Describe someone special and the occasion — I&apos;ll find the perfect gift.
+                </p>
+              </div>
 
               <form
                 onSubmit={handleSubmit}
-                className="flex w-full items-center gap-2 rounded-full bg-white p-2 shadow-lg shadow-[#034F46]/5"
+                className="glass-input flex w-full items-center gap-2 rounded-2xl p-2"
               >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center pl-1">
+                  <SparkleIcon className="h-4 w-4 text-[--color-text-tertiary]" />
+                </div>
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="It's my best friend's birthday tomorrow. She loves mystery novels and coffee. Budget ₹3,000."
-                  className="flex-1 bg-transparent px-4 py-2 text-sm text-[#034F46] placeholder:text-[#034F46]/40 focus:outline-none"
+                  className="flex-1 bg-transparent py-2.5 text-sm text-[--color-text] placeholder:text-[--color-text-tertiary] focus:outline-none"
                   disabled={isStreaming}
                 />
                 <button
                   type="submit"
                   aria-label="Send message"
                   disabled={isStreaming || !input.trim()}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#034F46] text-[#FFFFEB] transition hover:brightness-110 disabled:opacity-40"
+                  className="gradient-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[--color-text-inverse] disabled:opacity-30 disabled:hover:shadow-none"
                 >
                   <SendIcon />
                 </button>
@@ -419,7 +428,7 @@ export default function Home() {
                     key={q.label}
                     type="button"
                     onClick={() => setInput(q.prefill)}
-                    className="flex items-center gap-2 rounded-full border border-white/60 bg-white/40 px-4 py-2.5 text-sm font-medium text-[#034F46]/80 shadow-sm backdrop-blur-md transition hover:bg-white/70"
+                    className="glass-card glass-card-hover flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-[--color-text-secondary] press-scale"
                   >
                     <span className="text-base">{q.emoji}</span>
                     {q.label}
@@ -429,15 +438,15 @@ export default function Home() {
             </div>
           ) : (
             <div className="animate-fade-in mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col">
-              <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto flex flex-col gap-4 py-6">
-                {messages.map((m) => (
-                  <div key={m.id} className="animate-fade-in flex flex-col gap-3">
+              <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto flex flex-col gap-5 py-6">
+                {messages.map((m, i) => (
+                  <div key={m.id} className="animate-fade-in flex flex-col gap-3" style={{ animationDelay: `${Math.min(i * 0.05, 0.3)}s` }}>
                     <div className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                       <div
                         className={
                           m.role === "user"
-                            ? "max-w-[65%] whitespace-pre-wrap rounded-2xl bg-[#034F46] px-4 py-2.5 text-sm text-[#FFFFEB]"
-                            : "max-w-[55%] whitespace-pre-wrap rounded-2xl bg-white px-4 py-2.5 text-left text-sm text-[#034F46] shadow-sm"
+                            ? "max-w-[70%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[--color-primary] px-4 py-3 text-sm leading-relaxed text-[--color-text-inverse] shadow-sm"
+                            : "glass-card max-w-[75%] whitespace-pre-wrap rounded-2xl rounded-bl-md px-4 py-3 text-left text-sm leading-relaxed text-[--color-text]"
                         }
                       >
                         {m.content}
@@ -466,20 +475,23 @@ export default function Home() {
               <div className="mt-2 flex shrink-0 flex-col items-center gap-4 pb-2">
                 <form
                   onSubmit={handleSubmit}
-                  className="flex w-full items-center gap-2 rounded-full bg-white p-2 shadow-lg shadow-[#034F46]/5"
+                  className="glass-input flex w-full items-center gap-2 rounded-2xl p-2"
                 >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center pl-1">
+                    <SparkleIcon className="h-4 w-4 text-[--color-text-tertiary]" />
+                  </div>
                   <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="It's my best friend's birthday tomorrow. She loves mystery novels and coffee. Budget ₹3,000."
-                    className="flex-1 bg-transparent px-4 py-2 text-sm text-[#034F46] placeholder:text-[#034F46]/40 focus:outline-none"
+                    placeholder="Tell me more about who you're shopping for..."
+                    className="flex-1 bg-transparent py-2.5 text-sm text-[--color-text] placeholder:text-[--color-text-tertiary] focus:outline-none"
                     disabled={isStreaming}
                   />
                   <button
                     type="submit"
                     aria-label="Send message"
                     disabled={isStreaming || !input.trim()}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#034F46] text-[#FFFFEB] transition hover:brightness-110 disabled:opacity-40"
+                    className="gradient-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[--color-text-inverse] disabled:opacity-30 disabled:hover:shadow-none"
                   >
                     <SendIcon />
                   </button>
@@ -491,5 +503,13 @@ export default function Home() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
   );
 }

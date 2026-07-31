@@ -96,26 +96,33 @@ export async function getUpcomingOccasions(
         calNameLower.includes(n)
       );
 
-      const res = await calendar.events.list({
-        calendarId: calId,
-        timeMin: now.toISOString(),
-        timeMax: future.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: 50,
-      });
-
-      const items = res.data.items ?? [];
-      const filtered = isOccasionCalendar ? items : items.filter(isGiftOccasion);
-
-      for (const ev of filtered) {
-        rawEvents.push({
-          id: ev.id ?? Math.random().toString(),
-          summary: ev.summary ?? "Untitled event",
-          start: ev.start?.date ?? ev.start?.dateTime ?? now.toISOString(),
-          description: ev.description ?? undefined,
-          occasion: isOccasionCalendar ? "birthday" : detectOccasion(ev),
+      let pageToken: string | undefined = undefined;
+      while (true) {
+        const response: any = await calendar.events.list({
+          calendarId: calId,
+          timeMin: now.toISOString(),
+          timeMax: future.toISOString(),
+          singleEvents: true,
+          orderBy: "startTime",
+          maxResults: 2500,
+          pageToken: pageToken,
         });
+
+        const items = response.data.items ?? [];
+        const filtered = isOccasionCalendar ? items : items.filter(isGiftOccasion);
+
+        for (const ev of filtered) {
+          rawEvents.push({
+            id: ev.id ?? Math.random().toString(),
+            summary: ev.summary ?? "Untitled event",
+            start: ev.start?.date ?? ev.start?.dateTime ?? now.toISOString(),
+            description: ev.description ?? undefined,
+            occasion: isOccasionCalendar ? "birthday" : detectOccasion(ev),
+          });
+        }
+        
+        pageToken = response.data.nextPageToken || undefined;
+        if (!pageToken) break;
       }
     }
 

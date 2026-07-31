@@ -180,3 +180,34 @@ export function ChevronRightIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+/* ── New icons for the redesign ── */
+
+export function SparkleIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5L10 2z" />
+      <path d="M15 12l.75 2.25L18 15l-2.25.75L15 18l-.75-2.25L12 15l2.25-.75L15 12z" opacity="0.6" />
+    </svg>
+  );
+}
+
+export function CheckCircleIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M7 10.2l2 2 4-4.4" />
+    </svg>
+  );
+}
+
+export function GiftIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="2.5" y="9" width="15" height="8.5" rx="1.5" />
+      <rect x="1.5" y="6" width="17" height="3.5" rx="1" />
+      <line x1="10" y1="6" x2="10" y2="17.5" />
+      <path d="M10 6c0-2.5-2-4-3.5-4C5 2 4 3 4 4.5S5.5 6 7 6" />
+      <path d="M10 6c0-2.5 2-4 3.5-4C15 2 16 3 16 4.5S14.5 6 13 6" />
+    </svg>
+  );
+}
