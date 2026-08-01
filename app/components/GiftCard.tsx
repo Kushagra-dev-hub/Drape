@@ -3,14 +3,17 @@ import { useRouter } from "next/navigation";
 import type { GiftCandidate } from "@/lib/gifts";
 import { createClient } from "@/lib/supabase/client";
 
-export function GiftCard({ gift }: { gift: GiftCandidate }) {
+export function GiftCard({ gift, onApprove }: { gift: GiftCandidate; onApprove?: (giftId: string) => void }) {
   const router = useRouter();
   const [approved, setApproved] = useState(false);
 
   async function handleApprove() {
-    // Open the tab synchronously, before the auth await, so the click's user
-    // activation isn't lost — opening it after an await gets silently
-    // popup-blocked in Chrome/Firefox.
+    if (onApprove) {
+      onApprove(gift.id);
+      return;
+    }
+    
+    // Legacy fallback
     const popup = gift.checkoutUrl ? window.open("", "_blank", "noopener,noreferrer") : null;
 
     const supabase = createClient();

@@ -119,3 +119,9 @@ export async function importConversation(
 
   return conversation;
 }
+
+export async function deleteConversation(supabase: SupabaseClient, conversationId: string) {
+  const { error } = await supabase.from("conversations").delete().eq("id", conversationId);
+  if (error) throw error;
+}
+

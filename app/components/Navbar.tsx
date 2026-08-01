@@ -35,7 +35,7 @@ export function Navbar({ profile }: NavbarProps) {
             )}
             <div
               title={profile.name}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[--color-primary] text-sm font-semibold text-[--color-text-inverse] shadow-sm transition-shadow duration-200 hover:shadow-md"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-sm font-bold text-amber-900 shadow-sm transition-shadow duration-200 hover:shadow-md"
             >
               {profile.initial}
             </div>
