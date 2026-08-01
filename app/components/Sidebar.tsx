@@ -20,7 +20,7 @@ import {
   UserIcon,
   UsersIcon,
 } from "./icons";
-import { SettingsModal } from "./SettingsModal";
+
 
 const railIconButton =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[--color-text-secondary] transition-all duration-200 hover:bg-[--color-primary]/8 hover:text-[--color-text] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40";
@@ -62,7 +62,6 @@ export function Sidebar({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,7 +74,6 @@ export function Sidebar({
       if (e.key === "Escape") {
         setMenuOpen(false);
         setModalOpen(false);
-        setSettingsModalOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -91,59 +89,22 @@ export function Sidebar({
     setModalOpen(true);
   };
 
-  const openSettingsModal = () => {
-    setMenuOpen(false);
-    setSettingsModalOpen(true);
-  };
-
   const renderUserMenuPopover = (positionClass: string) =>
     signedIn &&
     profile &&
     menuOpen && (
-      <div className={`absolute z-50 w-64 rounded-2xl border border-[--color-border] bg-white/95 backdrop-blur-xl p-2 text-[--color-text] shadow-xl animate-scale-in ${positionClass}`}>
-        {/* Top User Lockup */}
+      <div className={`absolute z-50 w-48 rounded-2xl border border-[--color-border] bg-white/95 backdrop-blur-xl p-2 text-[--color-text] shadow-xl animate-scale-in ${positionClass}`}>
         <button
           type="button"
           onClick={openProfileModal}
-          className="flex w-full items-center justify-between gap-3 rounded-xl p-2.5 text-left transition-colors duration-150 hover:bg-[--color-surface]"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[--color-text] transition-colors duration-150 hover:bg-[--color-surface]"
         >
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-sm font-bold text-amber-900">
-              {profile.initial}
-            </div>
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-semibold text-[--color-text]">{profile.name}</span>
-              <span className="truncate text-xs text-[--color-text-tertiary]">{profile.email || "Free Account"}</span>
-            </div>
-          </div>
-          <ChevronRightIcon className="h-4 w-4 shrink-0 text-[--color-text-tertiary]" />
+          <UserIcon className="h-4 w-4 text-[--color-text-secondary]" />
+          Profile
         </button>
 
         <div className="my-1.5 h-px bg-[--color-border]" />
 
-        {/* Menu Options */}
-        <div className="flex flex-col gap-0.5">
-          <button
-            type="button"
-            onClick={openProfileModal}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[--color-text] transition-colors duration-150 hover:bg-[--color-surface]"
-          >
-            <UserIcon className="h-4 w-4 text-[--color-text-secondary]" />
-            Profile
-          </button>
-          <button
-            type="button"
-            onClick={openSettingsModal}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[--color-text] transition-colors duration-150 hover:bg-[--color-surface]"
-          >
-            <SettingsIcon className="h-4 w-4 text-[--color-text-secondary]" />
-            Settings
-          </button>
-        </div>
-
-        <div className="my-1.5 h-px bg-[--color-border]" />
-
-        {/* Log out option */}
         <button
           type="button"
           onClick={() => {
@@ -159,62 +120,70 @@ export function Sidebar({
     );
 
   const profileModal = modalOpen && profile && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="flex w-full max-w-md flex-col gap-6 rounded-3xl border border-[--color-border] bg-white p-7 shadow-2xl animate-scale-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setModalOpen(false)}>
+      <div 
+        className="flex w-full max-w-2xl flex-col gap-8 rounded-3xl border border-[--color-border] bg-[#F9FAFB] p-8 shadow-2xl animate-scale-in"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight text-[--color-text]">Profile</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-[--color-text]">Profile</h2>
           <button
             type="button"
             onClick={() => setModalOpen(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-[--color-text-secondary] transition-colors duration-150 hover:bg-[--color-primary]/8"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-[--color-text-secondary] transition-colors duration-150 hover:bg-[--color-primary]/8"
           >
-            <CloseIcon className="h-4 w-4" />
+            <CloseIcon className="h-5 w-5" />
           </button>
         </div>
 
         {/* User Card */}
-        <div className="flex items-center gap-4 rounded-2xl bg-[--color-surface] p-5">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-xl font-bold text-amber-900 shadow-sm">
+        <section className="flex items-center gap-6 rounded-3xl bg-white p-8 border border-black/5 shadow-sm">
+          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-4xl font-bold text-amber-900 shadow-sm">
             {profile.initial}
           </div>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate text-lg font-semibold text-[--color-text]">{profile.name}</span>
-            <span className="truncate text-sm text-[--color-text-secondary]">{profile.email || "No email linked"}</span>
-            <span className="mt-1.5 inline-flex w-max items-center rounded-full bg-[--color-accent-lavender]/30 px-3 py-1 text-xs font-semibold text-[--color-primary]">
-              Free Plan
-            </span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1 className="truncate text-3xl font-bold text-[--color-text]">{profile.name}</h1>
           </div>
-        </div>
+        </section>
 
-        {/* Account Details */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text-tertiary]">Integrations & Services</h3>
-
-          <div className="flex items-center justify-between rounded-xl border border-[--color-border] p-4 transition-colors duration-150 hover:border-[--color-border-hover]">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[--color-surface]">
-                <GoogleIcon className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-[--color-text]">Google Calendar</span>
-                <span className="text-xs text-[--color-text-tertiary]">Sync upcoming gift occasions</span>
+        {/* Contact Details */}
+        <section className="flex flex-col gap-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-[--color-text-tertiary] px-2">Contact Details</h3>
+          
+          <div className="flex flex-col rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5">
+              <div className="flex flex-col mb-3 sm:mb-0">
+                <span className="text-sm font-semibold text-[--color-text]">Email Address</span>
+                <span className="text-sm text-[--color-text-secondary] mt-1">{profile.email || "No email"}</span>
               </div>
             </div>
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-              Connected
-            </span>
           </div>
-        </div>
+        </section>
 
-        <div className="flex justify-end pt-2">
-          <button
-            type="button"
-            onClick={() => setModalOpen(false)}
-            className="gradient-button press-scale rounded-full px-6 py-2.5 text-sm font-semibold text-[--color-text-inverse]"
-          >
-            Done
-          </button>
-        </div>
+        {/* Integrated Services */}
+        <section className="flex flex-col gap-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-[--color-text-tertiary] px-2">Integrated Services</h3>
+
+          <div className="flex flex-col rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5">
+              <div className="flex items-center gap-4 mb-3 sm:mb-0">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[--color-surface]">
+                  <GoogleIcon className="h-6 w-6" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-base font-semibold text-[--color-text]">Google Calendar</span>
+                  <span className="text-sm text-[--color-text-tertiary] mt-0.5">Sync upcoming gift occasions</span>
+                </div>
+              </div>
+              
+              <span className="rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 border border-emerald-100 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                Connected
+              </span>
+            </div>
+          </div>
+        </section>
+
       </div>
     </div>
   );
@@ -223,7 +192,6 @@ export function Sidebar({
     return (
       <>
         {profileModal}
-        <SettingsModal open={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} profile={profile} />
         <aside className="glass-panel flex w-16 shrink-0 flex-col items-center gap-1.5 pb-5 pt-3 transition-[width] duration-300 ease-in-out">
           <button
             type="button"
@@ -285,7 +253,7 @@ export function Sidebar({
                 onClick={() => setMenuOpen((prev) => !prev)}
                 title={profile.name}
                 aria-label={`Account: ${profile.name}`}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[--color-primary] text-sm font-semibold text-[--color-text-inverse] transition-all duration-200 hover:shadow-md active:scale-95"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-sm font-bold text-amber-900 transition-all duration-200 hover:shadow-md active:scale-95"
               >
                 {profile.initial}
               </button>
@@ -299,7 +267,6 @@ export function Sidebar({
   return (
     <>
       {profileModal}
-      <SettingsModal open={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} profile={profile} />
       <aside className="glass-panel flex w-72 shrink-0 flex-col transition-[width] duration-300 ease-in-out">
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scrollbar-thin px-4 pb-5 pt-3">
           <div className="flex items-center justify-between">
