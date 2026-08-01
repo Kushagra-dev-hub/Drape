@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUpcomingOccasions, detectOccasion } from "@/lib/calendar";
 import { getGoogleTokens } from "@/lib/supabase/google-tokens";
-import { ArrowLeftIcon, CalendarIcon, GiftIcon, SearchIcon, SparkleIcon } from "@/app/components/icons";
+import { ArrowLeftIcon, CalendarIcon, SearchIcon, SparkleIcon } from "@/app/components/icons";
+import { CalendarSidebarWrapper } from "./CalendarSidebarWrapper";
+import { listConversations } from "@/lib/supabase/conversations";
 
 // Basic date utilities
 function formatDate(iso: string): string {
@@ -76,9 +78,14 @@ export default async function CalendarPage({
 
   if (!user) redirect("/login");
 
+  const name = user.user_metadata?.full_name?.trim() || user.email?.split("@")[0] || "there";
+  const initial = name.charAt(0).toUpperCase() || "?";
+
   const { error: oauthError, category, month } = await searchParams;
   const tokenRow = await getGoogleTokens(supabase, user.id).catch(() => null);
   
+  const conversations = await listConversations(supabase);
+
   // Fetch up to 365 days (1 year) to ensure we have a rich timeline of events
   const allEvents = tokenRow ? await getUpcomingOccasions(supabase, user.id, 365) : [];
 
@@ -158,136 +165,99 @@ export default async function CalendarPage({
   return (
     <div className="flex h-screen overflow-hidden bg-[#F4F5F7] text-[--color-text]">
       
-      {/* LEFT SIDEBAR */}
-      <aside className="w-72 shrink-0 border-r border-black/5 bg-white p-6 flex flex-col gap-8 overflow-y-auto scrollbar-hide">
-        {/* Logo / Brand */}
-        <div className="flex items-center gap-2">
-          <Link href="/" className="flex items-center gap-2 press-scale">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-warm text-white shadow-sm">
-              <GiftIcon className="h-4 w-4" />
-            </div>
-            <span className="font-bold tracking-tight text-lg">Memento</span>
-          </Link>
-        </div>
-
-        {/* Mini Calendar Widget */}
-        <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <Link href={prevUrl} className="press-scale flex h-7 w-7 items-center justify-center rounded-full text-[--color-text-tertiary] hover:bg-black/5 hover:text-[--color-text] transition-colors">&lt;</Link>
-            <span className="font-semibold text-sm">{getMonthYear(activeMonthDate)}</span>
-            <Link href={nextUrl} className="press-scale flex h-7 w-7 items-center justify-center rounded-full text-[--color-text-tertiary] hover:bg-black/5 hover:text-[--color-text] transition-colors">&gt;</Link>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-[--color-text-tertiary] mb-2">
-            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-          </div>
-          <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center text-xs">
-            {calendarDays.map((d, i) => {
-              const dayKey = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}`;
-              const hasEvents = allEventsByDate.has(dayKey) && allEventsByDate.get(dayKey)!.length > 0;
-              const isToday = dayKey === todayKey;
-              
-              const eventColors = hasEvents ? allEventsByDate.get(dayKey)!.slice(0, 3).map(ev => {
-                 return getCardStyle(ev.occasion).dot;
-              }) : [];
-
-              return (
-                <div key={i} className="flex flex-col items-center gap-0.5">
-                  <button className={`press-scale flex h-6 w-6 items-center justify-center rounded-full transition-colors ${isToday ? "bg-[--color-primary] text-white font-bold" : d.isCurrentMonth ? "text-[--color-text-secondary] hover:bg-black/5 hover:text-[--color-text]" : "text-black/20 hover:bg-black/5"}`}>
-                    {d.day}
-                  </button>
-                  <div className="flex gap-0.5 h-1">
-                    {eventColors.map((color, idx) => (
-                      <span key={idx} className={`h-1 w-1 rounded-full ${color}`} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Categories */}
-        <div className="flex flex-col gap-1 pb-10">
-          <h3 className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-[--color-text-tertiary]">
-            Categories
-          </h3>
-          <Link href={getCatUrl('all')} className={`press-scale flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors ${activeCategory === 'all' ? 'bg-[#F4F5F7] text-[--color-primary]' : 'text-[--color-text-secondary] hover:bg-[#F4F5F7] hover:text-[--color-text]'}`}>
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-[--color-primary]"></span>
-              All Events
-            </div>
-            <span className="text-xs opacity-70">{allEvents.length}</span>
-          </Link>
-          <Link href={getCatUrl('birthdays')} className={`press-scale flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors ${activeCategory === 'birthdays' ? 'bg-[#F4F5F7] text-[--color-primary]' : 'text-[--color-text-secondary] hover:bg-[#F4F5F7] hover:text-[--color-text]'}`}>
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-[#5B3BC4]"></span>
-              Birthdays
-            </div>
-            <span className="text-xs opacity-70">{allEvents.filter(e => getNormalizedCategory(e.occasion) === 'birthdays').length}</span>
-          </Link>
-          <Link href={getCatUrl('anniversaries')} className={`press-scale flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors ${activeCategory === 'anniversaries' ? 'bg-[#F4F5F7] text-[--color-primary]' : 'text-[--color-text-secondary] hover:bg-[#F4F5F7] hover:text-[--color-text]'}`}>
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-[#C2185B]"></span>
-              Anniversaries
-            </div>
-            <span className="text-xs opacity-70">{allEvents.filter(e => getNormalizedCategory(e.occasion) === 'anniversaries').length}</span>
-          </Link>
-          <Link href={getCatUrl('holidays')} className={`press-scale flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors ${activeCategory === 'holidays' ? 'bg-[#F4F5F7] text-[--color-primary]' : 'text-[--color-text-secondary] hover:bg-[#F4F5F7] hover:text-[--color-text]'}`}>
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-[#2E7D32]"></span>
-              Holidays
-            </div>
-            <span className="text-xs opacity-70">{allEvents.filter(e => getNormalizedCategory(e.occasion) === 'holidays').length}</span>
-          </Link>
-          <Link href={getCatUrl('other')} className={`press-scale flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors ${activeCategory === 'other' ? 'bg-[#F4F5F7] text-[--color-primary]' : 'text-[--color-text-secondary] hover:bg-[#F4F5F7] hover:text-[--color-text]'}`}>
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-[#1976D2]"></span>
-              Other
-            </div>
-            <span className="text-xs opacity-70">{allEvents.filter(e => getNormalizedCategory(e.occasion) === 'other').length}</span>
-          </Link>
-        </div>
-      </aside>
+      <CalendarSidebarWrapper 
+        profile={{
+          name: name,
+          email: user.email || "",
+          initial: initial,
+        }} 
+        conversations={conversations} 
+      />
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col min-w-0 bg-white">
+      <main className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto">
         
         {/* TOP NAVBAR */}
-        <header className="flex h-20 shrink-0 items-center justify-between border-b border-black/5 px-8">
+        <header className="flex h-20 shrink-0 items-center justify-between px-8 pt-4 pb-2">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold text-[--color-text]">
+              {activeCategory === 'all' ? 'All Upcoming Occasions' : `Upcoming ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)}`}
+            </h2>
+          </div>
+
           <div className="flex items-center gap-4">
             <Link href="/" className="press-scale inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-[#F4F5F7] text-[--color-text-secondary] hover:text-[--color-text] hover:bg-black/5 transition-colors">
               <ArrowLeftIcon className="h-4 w-4" />
               Back to Home
             </Link>
           </div>
-
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[--color-text-tertiary]" />
-              <input 
-                type="text" 
-                placeholder="Search occasions..." 
-                className="rounded-full bg-[#F4F5F7] pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[--color-primary]/20 w-64 hover:bg-black/5 transition-colors cursor-pointer"
-                disabled
-              />
-            </div>
-            {/* User Profile Mock */}
-            <button className="press-scale flex items-center gap-2 pl-4 border-l border-black/5 hover:opacity-80 transition-opacity">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 shadow-sm"></div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-semibold leading-tight text-[--color-text]">{user.email?.split('@')[0]}</span>
-                <span className="text-[10px] text-[--color-text-tertiary] leading-tight">Memento User</span>
-              </div>
-            </button>
-          </div>
         </header>
 
-        {/* CALENDAR HEADER (Title only, no pagination controls since it's a continuous scroll) */}
-        <div className="flex shrink-0 items-center justify-between px-8 py-6">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-[--color-text]">
-              {activeCategory === 'all' ? 'All Upcoming Occasions' : `Upcoming ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)}`}
-            </h2>
+        {/* HEADER AREA: Mini Calendar & Categories */}
+        <div className="px-8 py-4 flex flex-col lg:flex-row gap-8 border-b border-black/5">
+          {/* Mini Calendar Widget */}
+          <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm w-full lg:w-80 shrink-0">
+            <div className="flex items-center justify-between mb-4">
+              <Link href={prevUrl} className="press-scale flex h-7 w-7 items-center justify-center rounded-full text-[--color-text-tertiary] hover:bg-black/5 hover:text-[--color-text] transition-colors">&lt;</Link>
+              <span className="font-semibold text-sm">{getMonthYear(activeMonthDate)}</span>
+              <Link href={nextUrl} className="press-scale flex h-7 w-7 items-center justify-center rounded-full text-[--color-text-tertiary] hover:bg-black/5 hover:text-[--color-text] transition-colors">&gt;</Link>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-[--color-text-tertiary] mb-2">
+              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+            </div>
+            <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center text-xs">
+              {calendarDays.map((d, i) => {
+                const dayKey = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}`;
+                const hasEvents = allEventsByDate.has(dayKey) && allEventsByDate.get(dayKey)!.length > 0;
+                const isToday = dayKey === todayKey;
+                
+                const eventColors = hasEvents ? allEventsByDate.get(dayKey)!.slice(0, 3).map(ev => {
+                   return getCardStyle(ev.occasion).dot;
+                }) : [];
+
+                return (
+                  <div key={i} className="flex flex-col items-center gap-0.5">
+                    <button className={`press-scale flex h-6 w-6 items-center justify-center rounded-full transition-colors ${isToday ? "bg-[--color-primary] text-white font-bold" : d.isCurrentMonth ? "text-[--color-text-secondary] hover:bg-black/5 hover:text-[--color-text]" : "text-black/20 hover:bg-black/5"}`}>
+                      {d.day}
+                    </button>
+                    <div className="flex gap-0.5 h-1">
+                      {eventColors.map((color, idx) => (
+                        <span key={idx} className={`h-1 w-1 rounded-full ${color}`} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Categories Horizontal Tabs */}
+          <div className="flex flex-wrap gap-2 content-start pt-2">
+            <Link href={getCatUrl('all')} className={`press-scale flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${activeCategory === 'all' ? 'bg-[--color-primary] text-white shadow-md' : 'bg-[#F4F5F7] text-[--color-text-secondary] hover:bg-black/5 hover:text-[--color-text]'}`}>
+              <span className={`h-2 w-2 rounded-full ${activeCategory === 'all' ? 'bg-white' : 'bg-[--color-primary]'}`}></span>
+              All Events
+              <span className={`text-xs ml-1 ${activeCategory === 'all' ? 'opacity-90' : 'opacity-60'}`}>({allEvents.length})</span>
+            </Link>
+            <Link href={getCatUrl('birthdays')} className={`press-scale flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${activeCategory === 'birthdays' ? 'bg-[#5B3BC4] text-white shadow-md' : 'bg-[#F4F5F7] text-[--color-text-secondary] hover:bg-black/5 hover:text-[--color-text]'}`}>
+              <span className={`h-2 w-2 rounded-full ${activeCategory === 'birthdays' ? 'bg-white' : 'bg-[#5B3BC4]'}`}></span>
+              Birthdays
+              <span className={`text-xs ml-1 ${activeCategory === 'birthdays' ? 'opacity-90' : 'opacity-60'}`}>({allEvents.filter(e => getNormalizedCategory(e.occasion) === 'birthdays').length})</span>
+            </Link>
+            <Link href={getCatUrl('anniversaries')} className={`press-scale flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${activeCategory === 'anniversaries' ? 'bg-[#C2185B] text-white shadow-md' : 'bg-[#F4F5F7] text-[--color-text-secondary] hover:bg-black/5 hover:text-[--color-text]'}`}>
+              <span className={`h-2 w-2 rounded-full ${activeCategory === 'anniversaries' ? 'bg-white' : 'bg-[#C2185B]'}`}></span>
+              Anniversaries
+              <span className={`text-xs ml-1 ${activeCategory === 'anniversaries' ? 'opacity-90' : 'opacity-60'}`}>({allEvents.filter(e => getNormalizedCategory(e.occasion) === 'anniversaries').length})</span>
+            </Link>
+            <Link href={getCatUrl('holidays')} className={`press-scale flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${activeCategory === 'holidays' ? 'bg-[#2E7D32] text-white shadow-md' : 'bg-[#F4F5F7] text-[--color-text-secondary] hover:bg-black/5 hover:text-[--color-text]'}`}>
+              <span className={`h-2 w-2 rounded-full ${activeCategory === 'holidays' ? 'bg-white' : 'bg-[#2E7D32]'}`}></span>
+              Holidays
+              <span className={`text-xs ml-1 ${activeCategory === 'holidays' ? 'opacity-90' : 'opacity-60'}`}>({allEvents.filter(e => getNormalizedCategory(e.occasion) === 'holidays').length})</span>
+            </Link>
+            <Link href={getCatUrl('other')} className={`press-scale flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${activeCategory === 'other' ? 'bg-[#1976D2] text-white shadow-md' : 'bg-[#F4F5F7] text-[--color-text-secondary] hover:bg-black/5 hover:text-[--color-text]'}`}>
+              <span className={`h-2 w-2 rounded-full ${activeCategory === 'other' ? 'bg-white' : 'bg-[#1976D2]'}`}></span>
+              Other
+              <span className={`text-xs ml-1 ${activeCategory === 'other' ? 'opacity-90' : 'opacity-60'}`}>({allEvents.filter(e => getNormalizedCategory(e.occasion) === 'other').length})</span>
+            </Link>
           </div>
         </div>
 

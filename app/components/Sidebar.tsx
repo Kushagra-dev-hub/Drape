@@ -16,47 +16,21 @@ import {
   PlusIcon,
   SearchIcon,
   SettingsIcon,
+  TrashIcon,
   UserIcon,
   UsersIcon,
 } from "./icons";
+import { SettingsModal } from "./SettingsModal";
 
 const railIconButton =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[--color-text-secondary] transition-all duration-200 hover:bg-[--color-primary]/8 hover:text-[--color-text] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40";
 
-// Display-only for now — visual placeholders, not wired to real functionality yet.
 const STATIC_NAV_ITEMS = [
-  { label: "Recipients", icon: UsersIcon },
-  { label: "Gift Timeline", icon: ClockIcon },
+  { label: "Recipients", icon: UsersIcon, href: "/recipients" },
+  { label: "My Gifts", icon: ClockIcon, href: "/my-gifts" },
 ];
 
-type DateGroup = {
-  label: string;
-  items: ConversationSummary[];
-};
-
-function groupConversationsByDate(conversations: ConversationSummary[]): DateGroup[] {
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfYesterday = new Date(startOfToday.getTime() - 86400000);
-  const sevenDaysAgo = new Date(startOfToday.getTime() - 7 * 86400000);
-
-  const groups: DateGroup[] = [
-    { label: "Today", items: [] },
-    { label: "Yesterday", items: [] },
-    { label: "Previous 7 Days", items: [] },
-    { label: "Older", items: [] },
-  ];
-
-  for (const c of conversations) {
-    const updatedAt = new Date(c.updated_at);
-    if (updatedAt >= startOfToday) groups[0].items.push(c);
-    else if (updatedAt >= startOfYesterday) groups[1].items.push(c);
-    else if (updatedAt >= sevenDaysAgo) groups[2].items.push(c);
-    else groups[3].items.push(c);
-  }
-
-  return groups.filter((g) => g.items.length > 0);
-}
+// Removed groupConversationsByDate as we now use a flat list under "Chat History"
 
 type SidebarProps = {
   open: boolean;
@@ -68,6 +42,7 @@ type SidebarProps = {
   newChatDisabled: boolean;
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
+  onDeleteConversation?: (id: string) => void;
   onLogout: () => void;
 };
 
@@ -81,12 +56,13 @@ export function Sidebar({
   newChatDisabled,
   onNewChat,
   onSelectConversation,
+  onDeleteConversation,
   onLogout,
 }: SidebarProps) {
-  const groupedConversations = groupConversationsByDate(conversations);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,6 +75,7 @@ export function Sidebar({
       if (e.key === "Escape") {
         setMenuOpen(false);
         setModalOpen(false);
+        setSettingsModalOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -114,6 +91,11 @@ export function Sidebar({
     setModalOpen(true);
   };
 
+  const openSettingsModal = () => {
+    setMenuOpen(false);
+    setSettingsModalOpen(true);
+  };
+
   const renderUserMenuPopover = (positionClass: string) =>
     signedIn &&
     profile &&
@@ -126,7 +108,7 @@ export function Sidebar({
           className="flex w-full items-center justify-between gap-3 rounded-xl p-2.5 text-left transition-colors duration-150 hover:bg-[--color-surface]"
         >
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[--color-primary] text-sm font-semibold text-[--color-text-inverse]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-sm font-bold text-amber-900">
               {profile.initial}
             </div>
             <div className="flex min-w-0 flex-col">
@@ -151,7 +133,7 @@ export function Sidebar({
           </button>
           <button
             type="button"
-            onClick={openProfileModal}
+            onClick={openSettingsModal}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[--color-text] transition-colors duration-150 hover:bg-[--color-surface]"
           >
             <SettingsIcon className="h-4 w-4 text-[--color-text-secondary]" />
@@ -180,7 +162,7 @@ export function Sidebar({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in">
       <div className="flex w-full max-w-md flex-col gap-6 rounded-3xl border border-[--color-border] bg-white p-7 shadow-2xl animate-scale-in">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight text-[--color-text]">Profile & Settings</h2>
+          <h2 className="text-xl font-bold tracking-tight text-[--color-text]">Profile</h2>
           <button
             type="button"
             onClick={() => setModalOpen(false)}
@@ -192,7 +174,7 @@ export function Sidebar({
 
         {/* User Card */}
         <div className="flex items-center gap-4 rounded-2xl bg-[--color-surface] p-5">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[--color-primary] text-xl font-bold text-[--color-text-inverse]">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-xl font-bold text-amber-900 shadow-sm">
             {profile.initial}
           </div>
           <div className="flex min-w-0 flex-col gap-0.5">
@@ -241,6 +223,7 @@ export function Sidebar({
     return (
       <>
         {profileModal}
+        <SettingsModal open={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} profile={profile} />
         <aside className="glass-panel flex w-16 shrink-0 flex-col items-center gap-1.5 pb-5 pt-3 transition-[width] duration-300 ease-in-out">
           <button
             type="button"
@@ -316,6 +299,7 @@ export function Sidebar({
   return (
     <>
       {profileModal}
+      <SettingsModal open={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} profile={profile} />
       <aside className="glass-panel flex w-72 shrink-0 flex-col transition-[width] duration-300 ease-in-out">
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scrollbar-thin px-4 pb-5 pt-3">
           <div className="flex items-center justify-between">
@@ -342,10 +326,6 @@ export function Sidebar({
             </button>
           </div>
 
-          <div className="flex cursor-default items-center gap-2.5 rounded-xl border border-[--color-border] bg-[--color-surface]/60 px-3.5 py-2.5 text-sm text-[--color-text-tertiary] transition-colors duration-150">
-            <SearchIcon className="h-4 w-4 shrink-0" />
-            Search
-          </div>
 
           <nav className="flex flex-col gap-1.5">
             <button
@@ -364,14 +344,15 @@ export function Sidebar({
               <CalendarIcon className="h-[18px] w-[18px] text-[--color-text-secondary]" />
               Upcoming Events
             </Link>
-            {STATIC_NAV_ITEMS.map(({ label, icon: Icon }) => (
-              <span
+            {STATIC_NAV_ITEMS.map(({ label, icon: Icon, href }) => (
+              <Link
+                href={href}
                 key={label}
-                className="flex cursor-default items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-[--color-text-secondary]"
+                className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-[--color-text-secondary] transition-all duration-200 hover:bg-[--color-surface] hover:text-[--color-text]"
               >
-              <Icon className="h-[18px] w-[18px] text-[--color-text-tertiary]" />
+                <Icon className="h-[18px] w-[18px] text-[--color-text-tertiary]" />
                 {label}
-              </span>
+              </Link>
             ))}
           </nav>
 
@@ -396,30 +377,46 @@ export function Sidebar({
                 <p className="py-2 text-sm text-[--color-text-tertiary]">No chats yet.</p>
               </div>
             ) : (
-              groupedConversations.map((group) => (
-                <div key={group.label} className="flex flex-col gap-1">
-                  <span className="px-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-tertiary]">
-                    {group.label}
-                  </span>
-                  <div className="flex flex-col gap-0.5">
-                    {group.items.map((c) => (
+              <div className="flex flex-col gap-1">
+                <span className="px-1 pb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-tertiary]">
+                  Chat History
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  {conversations.map((c) => (
+                    <div key={c.id} className={`group flex items-center justify-between gap-1 rounded-xl pr-1 transition-all duration-200 ${
+                      c.id === activeConversationId
+                        ? "bg-[--color-surface] font-medium text-[--color-text] shadow-sm"
+                        : "hover:bg-[--color-surface]/60"
+                    }`}>
                       <button
-                        key={c.id}
                         type="button"
                         onClick={() => onSelectConversation(c.id)}
-                        className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm transition-all duration-200 ${
+                        className={`flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2 text-left text-sm ${
                           c.id === activeConversationId
-                            ? "bg-[--color-surface] font-medium text-[--color-text] shadow-sm"
-                            : "text-[--color-text-secondary] hover:bg-[--color-surface]/60 hover:text-[--color-text]"
+                            ? ""
+                            : "text-[--color-text-secondary] group-hover:text-[--color-text]"
                         }`}
                       >
                         <ArrowUpRightIcon className="h-3.5 w-3.5 shrink-0 text-[--color-text-tertiary]" />
                         <span className="truncate">{c.title}</span>
                       </button>
-                    ))}
-                  </div>
+                      {onDeleteConversation && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteConversation(c.id);
+                          }}
+                          className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[--color-text-tertiary] transition-colors hover:bg-red-50 hover:text-red-500 group-hover:flex"
+                          aria-label="Delete chat"
+                        >
+                          <TrashIcon className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))
+              </div>
             )}
           </div>
         </div>
@@ -434,7 +431,7 @@ export function Sidebar({
               className="flex w-full items-center justify-between gap-2.5 rounded-xl p-2 text-left transition-all duration-200 hover:bg-[--color-primary]/5"
             >
               <div className="flex min-w-0 items-center gap-2.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[--color-primary] text-sm font-semibold text-[--color-text-inverse]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-sm font-bold text-amber-900 shadow-sm">
                   {profile.initial}
                 </div>
                 <span className="truncate text-sm font-semibold text-[--color-text]">{profile.name}</span>

@@ -211,3 +211,12 @@ export function GiftIcon({ className = base }: IconProps) {
     </svg>
   );
 }
+
+export function TrashIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 5h12M8 5V3h4v2M5 5l1 12h8l1-12" />
+    </svg>
+  );
+}
+
