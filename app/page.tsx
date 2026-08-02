@@ -17,10 +17,13 @@ import {
 } from "@/lib/supabase/conversations";
 import { GiftCard } from "./components/GiftCard";
 import { LetterCard } from "./components/LetterCard";
-import { SendIcon, SparkleIcon } from "./components/icons";
+import { SendIcon, SparkleIcon, MicIcon } from "./components/icons";
 import { Navbar, type Profile } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { ThinkingStages, type Stage } from "./components/ThinkingStages";
+import { TalkModeOverlay } from "./components/TalkModeOverlay";
+import { useTalkMode } from "./hooks/useTalkMode";
+import type { AgentTurnEvent } from "@/lib/agent-runtime";
 
 const QUICK_STARTS = [
   { emoji: "🎂", label: "Birthday", prefill: "It's a birthday coming up for " },
@@ -348,6 +351,78 @@ function HomeContent() {
     }
   }
 
+  // Talk mode: gifts/options/letter arrive as separate socket events that can
+  // land before the spoken reply finishes, so — unlike text chat, where the
+  // assistant bubble is created by the "message" event — an empty assistant
+  // bubble is created immediately here so applyEvent's map-based cases always
+  // have somewhere to attach to, regardless of arrival order.
+  const talkAssistantIdRef = useRef<string | null>(null);
+  const talkConversationIdRef = useRef<string | null>(null);
+
+  async function handleTalkUserTranscript(text: string) {
+    const userMessage: Message = { id: nextId(), role: "user", content: text };
+    setMessages((prev) => [...prev, userMessage]);
+    setStages([]);
+
+    let activeConversationId = conversationId;
+    if (userId) {
+      try {
+        if (!activeConversationId) {
+          const created = await createConversation(supabase, userId, text);
+          activeConversationId = created.id;
+          setConversationId(created.id);
+          setConversations((prev) => [created, ...prev]);
+        }
+        await insertMessage(supabase, {
+          id: userMessage.id,
+          conversationId: activeConversationId,
+          role: "user",
+          content: text,
+        });
+      } catch (err) {
+        console.warn("Failed to persist voice message", err);
+      }
+    }
+
+    const assistantId = nextId();
+    talkAssistantIdRef.current = assistantId;
+    talkConversationIdRef.current = activeConversationId;
+    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+  }
+
+  function handleTalkAgentEvent(event: AgentTurnEvent) {
+    const assistantId = talkAssistantIdRef.current;
+    if (!assistantId) return;
+    applyEvent(event as StreamEvent, assistantId, talkConversationIdRef.current);
+  }
+
+  function handleTalkTurnComplete(fullText: string) {
+    const assistantId = talkAssistantIdRef.current;
+    const activeConversationId = talkConversationIdRef.current;
+    if (!assistantId) return;
+    setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: fullText } : m)));
+    if (userId && activeConversationId) {
+      insertMessage(supabase, {
+        id: assistantId,
+        conversationId: activeConversationId,
+        role: "assistant",
+        content: fullText,
+      }).catch((err) => console.warn("Failed to persist voice assistant message", err));
+    }
+  }
+
+  const talkMode = useTalkMode({
+    onUserTranscript: handleTalkUserTranscript,
+    onAgentEvent: handleTalkAgentEvent,
+    onTurnComplete: handleTalkTurnComplete,
+    onInterrupted: () => {},
+    onError: (message) => console.error("[TalkMode]", message),
+  });
+
+  function handleStartTalkMode() {
+    talkMode.startVoice(messages.map(({ role, content }) => ({ role, content })));
+  }
+
   async function sendMessage(text: string) {
     const userMessage: Message = { id: nextId(), role: "user", content: text };
     const history = [...messages, userMessage];
@@ -504,6 +579,15 @@ function HomeContent() {
                   >
                     <SendIcon />
                   </button>
+                  <button
+                    type="button"
+                    aria-label="Start talk mode"
+                    onClick={handleStartTalkMode}
+                    disabled={talkMode.isVoiceActive}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/5 text-[--color-text-secondary] transition-all hover:bg-black/10 active:scale-95 disabled:opacity-30"
+                  >
+                    <MicIcon className="h-4 w-4" />
+                  </button>
                 </form>
 
                 <div className="flex flex-wrap justify-center gap-2">
@@ -602,6 +686,15 @@ function HomeContent() {
                     >
                       <SendIcon />
                     </button>
+                    <button
+                      type="button"
+                      aria-label="Start talk mode"
+                      onClick={handleStartTalkMode}
+                      disabled={talkMode.isVoiceActive}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/5 text-[--color-text-secondary] transition-all hover:bg-black/10 active:scale-95 disabled:opacity-30"
+                    >
+                      <MicIcon className="h-4 w-4" />
+                    </button>
                   </form>
                 </div>
               </div>
@@ -609,6 +702,19 @@ function HomeContent() {
           </div>
         </main>
       </div>
+
+      {talkMode.isVoiceActive && (
+        <TalkModeOverlay
+          connectionState={talkMode.connectionState}
+          isMuted={talkMode.isMuted}
+          isAgentSpeaking={talkMode.isAgentSpeaking}
+          isProcessing={talkMode.isProcessing}
+          interimCaption={talkMode.interimCaption}
+          agentCaption={talkMode.agentCaption}
+          onToggleMute={talkMode.toggleMute}
+          onEndCall={talkMode.stopVoice}
+        />
+      )}
     </div>
   );
 }

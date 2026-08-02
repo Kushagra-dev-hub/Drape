@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>&lt;mascot-voice&gt; demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#f6f2fc;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#241b3d}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px}
+  .panel{position:relative;overflow:hidden;width:860px;max-width:100%;border-radius:32px;
+         background:linear-gradient(168deg,#f8eeff 0%,#f0d9ff 48%,#e7cbfb 100%);
+         box-shadow:0 40px 90px -40px rgba(74,44,128,.45),0 0 0 1px rgba(151,116,206,.16);
+         padding:38px 40px 30px;display:flex;flex-direction:column;align-items:center;gap:20px}
+  .status{display:flex;align-items:center;gap:9px;padding:7px 15px 7px 11px;border-radius:999px;
+          background:rgba(255,255,255,.8);box-shadow:0 6px 16px -10px rgba(74,44,128,.6);
+          font-size:12.5px;font-weight:700;color:#6a4fa3;white-space:nowrap}
+  .status i{width:8px;height:8px;border-radius:50%;background:#a98fdc;transition:background .25s ease}
+  .caption{max-width:600px;min-height:58px;font-size:20px;line-height:1.45;font-weight:600;
+           letter-spacing:-.012em;text-align:center;color:#33255c;text-wrap:pretty}
+  .caption[data-listening]{font-weight:500;color:#6a5a8c}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+  .chips button{padding:8px 14px;border:0;border-radius:11px;cursor:pointer;
+                font:700 12.5px 'Plus Jakarta Sans',system-ui,sans-serif;
+                background:rgba(255,255,255,.72);color:#7a67a3;transition:background .2s,color .2s}
+  .chips button[aria-pressed="true"]{background:#7b52c9;color:#fff;box-shadow:0 10px 20px -12px rgba(91,52,166,.9)}
+  .mic{display:flex;align-items:center;gap:9px;padding:12px 20px;border:0;border-radius:15px;cursor:pointer;
+       white-space:nowrap;font:700 13.5px 'Plus Jakarta Sans',system-ui,sans-serif;background:#7b52c9;color:#fff;
+       box-shadow:0 14px 28px -12px rgba(91,52,166,.85)}
+  .row{display:flex;align-items:center;gap:16px}
+  .meter{display:flex;align-items:flex-end;gap:3.5px;height:34px}
+  .meter i{width:3.5px;border-radius:2px;background:rgba(123,82,201,.5);height:5px}
+</style>
+</head>
+<body>
+  <div class="panel">
+    <mascot-voice id="m" size="240" state="idle" assets="./"></mascot-voice>
+
+    <div class="status"><i id="dot"></i><span id="label">Idle</span></div>
+    <div class="caption" id="cap"></div>
+
+    <div class="row">
+      <button class="mic" id="micBtn">Drive it with my microphone</button>
+      <div class="meter" id="meter"></div>
+    </div>
+
+    <div class="chips" id="chips"></div>
+  </div>
+
+<script type="module">
+import { ACCENT } from './mascot-voice.js';
+
+const m = document.getElementById('m');
+const cap = document.getElementById('cap');
+const dot = document.getElementById('dot');
+const label = document.getElementById('label');
+const meter = document.getElementById('meter');
+const LABEL = { idle:'Idle', listening:'Listening to you', thinking:'Thinking', speaking:'Speaking', asking:'Asking you' };
+
+for (let i = 0; i < 20; i++) meter.appendChild(document.createElement('i'));
+
+// ---- state + caption plumbing (this is the part you replace with your own app) ----
+let manual = false;
+function set(state, text) {
+  m.state = state;
+  m.text = text || '';
+  label.textContent = LABEL[state];
+  dot.style.background = ACCENT[state];
+}
+
+// The component tells you how much of the line has been "said" — reveal the caption from it.
+function paint() {
+  const s = m.state;
+  const raw = (s === 'speaking' || s === 'asking') ? m.text.slice(0, m.spokenChars) : (s === 'thinking' ? '' : m.text);
+  const quoted = s === 'listening' && raw ? '\u201C' + raw + '\u201D' : raw;
+  if (cap.textContent !== quoted) cap.textContent = quoted;
+  if (s === 'listening') cap.setAttribute('data-listening', ''); else cap.removeAttribute('data-listening');
+
+  const lvl = s === 'idle' ? .04 : Math.max(0, m.level >= 0 ? m.level : 0);
+  const bars = meter.children;
+  for (let i = 0; i < bars.length; i++) {
+    const c = Math.abs(i - (bars.length - 1) / 2) / ((bars.length - 1) / 2);
+    const shape = 1 - c * c * .85;
+    const wob = .55 + .45 * Math.sin(performance.now() / (170 + i * 21) + i);
+    bars[i].style.height = (4 + lvl * 30 * shape * wob).toFixed(1) + 'px';
+    bars[i].style.background = s === 'idle' ? 'rgba(123,82,201,.5)' : '#7b52c9';
+  }
+  requestAnimationFrame(paint);
+}
+paint();
+
+// ---- looping demo conversation ----
+const SCRIPT = [
+  { s:'listening', t:'What\u2019s the weather in Kyoto this weekend?', d:2900 },
+  { s:'thinking',  t:'', d:1150 },
+  { s:'speaking',  t:'Saturday looks clear and mild \u2014 around 24 degrees. Sunday brings light rain after lunch.' },
+  { s:'asking',    t:'Want me to remind you to pack an umbrella?' },
+  { s:'listening', t:'Yes, please do.', d:1600 },
+  { s:'speaking',  t:'Done \u2014 I\u2019ll nudge you Sunday morning.' },
+  { s:'idle',      t:'', d:1900 }
+];
+let i = 0, timer;
+function step() {
+  if (manual) return;
+  const k = SCRIPT[i % SCRIPT.length];
+  set(k.s, k.t);
+  i++;
+  if (k.d) timer = setTimeout(step, k.d);
+  // no explicit duration: wait for the component's own 'spoken' event
+}
+m.addEventListener('spoken', () => { if (!manual && !micOn) timer = setTimeout(step, 500); });
+step();
+
+// ---- state chips ----
+const COPY = {
+  idle: '',
+  listening: 'Go ahead \u2014 I\u2019m listening.',
+  thinking: '',
+  speaking: 'Here\u2019s what I found \u2014 three flights leave before noon, and the cheapest is the 9:40.',
+  asking: 'Should I hold the 9:40 for you?'
+};
+const chips = document.getElementById('chips');
+Object.keys(LABEL).forEach((s) => {
+  const b = document.createElement('button');
+  b.textContent = s[0].toUpperCase() + s.slice(1);
+  b.onclick = () => { manual = true; clearTimeout(timer); set(s, COPY[s]); sync(); };
+  chips.appendChild(b);
+});
+function sync() {
+  [...chips.children].forEach((b, n) => b.setAttribute('aria-pressed', String(Object.keys(LABEL)[n] === m.state)));
+}
+new MutationObserver(sync).observe(m, { attributes: true, attributeFilter: ['state'] });
+
+// ---- real microphone: feeds el.level, and hands off to thinking on silence ----
+const micBtn = document.getElementById('micBtn');
+let micOn = false, stream, ac, an, buf, silence = 0, tLast = 0;
+micBtn.onclick = async () => {
+  if (micOn) return stopMic();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    ac = new AudioContext();
+    an = ac.createAnalyser();
+    an.fftSize = 512; an.smoothingTimeConstant = .7;
+    ac.createMediaStreamSource(stream).connect(an);
+    buf = new Uint8Array(an.frequencyBinCount);
+    micOn = true; manual = true; clearTimeout(timer); silence = 0; tLast = performance.now();
+    micBtn.textContent = 'Listening \u2014 stop microphone';
+    micBtn.style.background = '#2f9e74';
+    set('listening', '');
+    pump();
+  } catch (e) { micBtn.textContent = 'Microphone blocked'; }
+};
+function stopMic() {
+  micOn = false;
+  stream && stream.getTracks().forEach((t) => t.stop());
+  ac && ac.close();
+  micBtn.textContent = 'Drive it with my microphone';
+  micBtn.style.background = '#7b52c9';
+  set('idle', '');
+}
+function pump() {
+  if (!micOn) return;
+  requestAnimationFrame(pump);
+  an.getByteTimeDomainData(buf);
+  let sum = 0;
+  for (let n = 0; n < buf.length; n++) { const x = (buf[n] - 128) / 128; sum += x * x; }
+  m.level = Math.min(1, Math.sqrt(sum / buf.length) * 5.2);   // 5.2 = gain; tune to your mic
+
+  const now = performance.now(), dt = now - tLast; tLast = now;
+  if (m.state === 'listening') {
+    silence = m.level < .07 ? silence + dt : 0;
+    if (silence > 1100) { silence = 0; set('thinking', ''); setTimeout(() => micOn && set('speaking', 'That\u2019s the gist of it \u2014 I\u2019ve written it down for you.'), 950); }
+  } else if ((m.state === 'speaking' || m.state === 'asking') && !m.busy) {
+    set('listening', ''); silence = 0;
+  }
+}
+</script>
+</body>
+</html>
