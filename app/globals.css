@@ -100,6 +100,92 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   CALENDAR DAY CARDS — premium look with a hover sheen + colour wash
+   ───────────────────────────────────────────────────────────── */
+.cal-card {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(150deg, #ffffff 0%, #fffdf9 55%, #fdf9f2 100%);
+  border: 1px solid rgba(10, 47, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(10, 47, 42, 0.04), 0 6px 16px rgba(10, 47, 42, 0.035);
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.28s ease, border-color 0.28s ease;
+}
+/* faded colour wash that fades in on hover (behind the content) */
+.cal-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(139, 124, 240, 0.10) 0%, transparent 45%),
+    radial-gradient(120% 100% at 100% 100%, rgba(245, 208, 181, 0.13) 0%, transparent 45%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+/* diagonal sheen that sweeps across on hover */
+.cal-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.65) 50%, transparent 65%);
+  transform: translateX(-130%);
+  transition: transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+.cal-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(139, 124, 240, 0.35);
+  box-shadow: 0 14px 30px rgba(139, 124, 240, 0.16), 0 4px 10px rgba(10, 47, 42, 0.06);
+}
+.cal-card:hover::after { opacity: 1; }
+.cal-card:hover::before { transform: translateX(130%); }
+
+/* today: a crisp INSET green ring + faint green tint — stays inside the card,
+   no spilling outset halo */
+.cal-card-today {
+  border-color: rgba(26, 107, 95, 0.35);
+  background: linear-gradient(150deg, #ffffff 0%, #f2faf6 100%);
+  box-shadow: inset 0 0 0 1.5px rgba(26, 107, 95, 0.4), 0 6px 16px rgba(10, 47, 42, 0.05);
+}
+.cal-card-today:hover {
+  transform: translateY(-4px);
+  border-color: rgba(26, 107, 95, 0.5);
+  box-shadow: inset 0 0 0 1.5px rgba(26, 107, 95, 0.55), 0 14px 28px rgba(10, 47, 42, 0.08);
+}
+
+/* CTA shine — a gleam that glances across the button on a gentle loop */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.4) 50%, transparent 68%);
+  transform: translateX(-130%);
+  animation: btn-shine 3.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes btn-shine {
+  0%, 12% { transform: translateX(-130%); }
+  55%, 100% { transform: translateX(130%); }
+}
+
+/* gift cards rise + fade in on load (backwards fill so hover transforms still work) */
+@keyframes giftRise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.gift-rise { animation: giftRise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) backwards; }
+
+/* ─────────────────────────────────────────────────────────────
    GLASS UTILITIES
    ───────────────────────────────────────────────────────────── */
 .glass-panel {

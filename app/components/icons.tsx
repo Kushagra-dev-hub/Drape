@@ -183,12 +183,8 @@ export function ChevronRightIcon({ className = "h-4 w-4" }: IconProps) {
 /* ── New icons for the redesign ── */
 
 export function SparkleIcon({ className = base }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
-      <path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5L10 2z" />
-      <path d="M15 12l.75 2.25L18 15l-2.25.75L15 18l-.75-2.25L12 15l2.25-.75L15 12z" opacity="0.6" />
-    </svg>
-  );
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/logo.png" alt="" className={`${className} object-contain`} />;
 }
 
 export function CheckCircleIcon({ className = base }: IconProps) {

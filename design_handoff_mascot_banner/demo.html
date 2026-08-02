@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>&lt;mascot-banner&gt; demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#f2e6fa;
+            font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#2a2049}
+  body{min-height:100vh;display:flex;flex-direction:column;
+       background:radial-gradient(760px 460px at 50% 34%,#f7effd 0%,#f2e6fa 62%,#eddef7 100%)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px 34px}
+  .brand{display:flex;align-items:center;gap:11px;font-size:14.5px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+  .brand i{width:26px;height:26px;border-radius:9px;background:linear-gradient(150deg,#cbabf3,#9a72dd)}
+  .count{padding:7px 13px;border-radius:999px;background:rgba(255,255,255,.6);font-size:12.5px;font-weight:700;color:#7a67a3}
+  main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:10px 24px 60px}
+  .cta{display:flex;align-items:center;gap:9px;padding:13px 24px;border:0;border-radius:15px;cursor:pointer;
+       white-space:nowrap;font:700 13.5px 'Plus Jakarta Sans',system-ui,sans-serif;background:#7b52c9;color:#fff;
+       box-shadow:0 16px 28px -14px rgba(91,52,166,.9);transition:transform .18s cubic-bezier(.22,1,.36,1)}
+  .cta:hover{transform:translateY(-2px)}
+  .edit{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .edit input{width:330px;padding:10px 13px;border:1px solid rgba(151,116,206,.35);border-radius:11px;
+              font:600 13px 'Plus Jakarta Sans',system-ui,sans-serif;color:#4a3a70;background:rgba(255,255,255,.75)}
+  .edit input:focus{outline:2px solid rgba(123,82,201,.4);outline-offset:1px}
+  .edit button{padding:10px 15px;border:0;border-radius:11px;cursor:pointer;
+               font:700 12.5px 'Plus Jakarta Sans',system-ui,sans-serif;background:rgba(255,255,255,.8);color:#7a67a3}
+  /* sign copy styling hooks */
+  mascot-banner{--banner-color:#7357b5;--banner-size:23px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><i></i>Wish list</div>
+    <div class="count">0 saved</div>
+  </header>
+
+  <main>
+    <!-- The sign copy is just child text. Edit these lines and the sign updates. -->
+    <mascot-banner id="b" size="480" assets="./" cycle="6.5">
+      <span>Start adding to the Wish list!</span>
+      <span>It’s a bit empty in here</span>
+      <span>Tap the heart on anything you like</span>
+    </mascot-banner>
+
+    <button class="cta" id="cta">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.2 4.6 13a4.6 4.6 0 0 1 6.5-6.5l.9.9.9-.9A4.6 4.6 0 1 1 19.4 13z"></path></svg>
+      Browse the shop
+    </button>
+
+    <div class="edit">
+      <input id="txt" value="Type anything — it lands on the sign" aria-label="Sign text">
+      <button id="setOne">Set one line</button>
+      <button id="restore">Back to cycling</button>
+    </div>
+  </main>
+
+<script type="module">
+import './mascot-banner.js';
+const b = document.getElementById('b');
+
+document.getElementById('cta').onclick = () => b.shake();
+
+// 1. one static line
+document.getElementById('setOne').onclick = () => {
+  b.message = document.getElementById('txt').value;
+};
+// 2. back to a cycling list
+document.getElementById('restore').onclick = () => {
+  b.messages = ['Start adding to the Wish list!', 'It’s a bit empty in here', 'Tap the heart on anything you like'];
+};
+// 3. type-as-you-go
+document.getElementById('txt').addEventListener('input', (e) => {
+  if (b.messages.length === 1) b.message = e.target.value;
+});
+
+b.addEventListener('message', (e) => console.log('sign now reads:', e.detail.text));
+</script>
+</body>
+</html>

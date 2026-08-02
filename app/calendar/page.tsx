@@ -1,9 +1,9 @@
 import Link from "next/link";
+import Script from "next/script";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUpcomingOccasions, detectOccasion } from "@/lib/calendar";
 import { getGoogleTokens } from "@/lib/supabase/google-tokens";
-import { ArrowLeftIcon, CalendarIcon } from "@/app/components/icons";
 import { CalendarSidebarWrapper } from "./CalendarSidebarWrapper";
 import { listConversations } from "@/lib/supabase/conversations";
 import { getMonthYear, getNormalizedCategory, getLocalDayKey } from "./utils";
@@ -112,7 +112,7 @@ export default async function CalendarPage({
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F4F5F7] text-[--color-text]">
+    <div className="flex h-screen overflow-hidden bg-[--color-surface] text-[--color-text]">
       
       <CalendarSidebarWrapper 
         profile={{
@@ -124,32 +124,28 @@ export default async function CalendarPage({
       />
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+      <main className="hero-gradient flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* TOP NAVBAR */}
-        <header className="flex shrink-0 items-center justify-between px-8 py-6 border-b border-black/5 bg-white z-10">
+        <header className="flex shrink-0 items-center justify-between px-8 py-6 border-b border-black/5 z-10">
           <div className="flex flex-col gap-1">
-            <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[--color-text-tertiary] hover:text-[--color-text] transition-colors mb-2">
-              <ArrowLeftIcon className="h-3 w-3" />
-              Back to Home
-            </Link>
             <h2 className="text-3xl font-bold text-[--color-text] tracking-tight">
               Upcoming Events
             </h2>
           </div>
 
           {/* Month Selector */}
-          <div className="flex items-center bg-[#F4F5F7] rounded-full p-1 border border-black/5">
-            <Link href={prevUrl} className="press-scale flex h-8 w-8 items-center justify-center rounded-full text-[--color-text-secondary] hover:bg-white hover:shadow-sm transition-all">&lt;</Link>
-            <Link href={todayUrl} className="px-4 font-semibold text-sm hover:opacity-70 transition-opacity min-w-[120px] text-center">
+          <div className="flex items-center gap-1 rounded-full p-1.5 border border-black/[0.06] bg-gradient-to-b from-white to-[#FBF6EE] shadow-[0_6px_18px_rgba(10,47,42,0.09),inset_0_1px_0_rgba(255,255,255,0.8)]">
+            <Link href={prevUrl} className="press-scale flex h-8 w-8 items-center justify-center rounded-full text-[--color-text-secondary] hover:bg-[#1A6B5F]/12 hover:text-[#1A6B5F] transition-colors">&lt;</Link>
+            <Link href={todayUrl} className="min-w-[130px] px-4 text-center text-sm font-bold text-[--color-text] hover:text-[#1A6B5F] transition-colors">
               {getMonthYear(activeMonthDate)}
             </Link>
-            <Link href={nextUrl} className="press-scale flex h-8 w-8 items-center justify-center rounded-full text-[--color-text-secondary] hover:bg-white hover:shadow-sm transition-all">&gt;</Link>
+            <Link href={nextUrl} className="press-scale flex h-8 w-8 items-center justify-center rounded-full text-[--color-text-secondary] hover:bg-[#1A6B5F]/12 hover:text-[#1A6B5F] transition-colors">&gt;</Link>
           </div>
         </header>
 
         {/* Filters Row */}
-        <div className="px-8 py-4 shrink-0 bg-white flex flex-wrap gap-2">
+        <div className="px-8 py-4 shrink-0 flex flex-wrap gap-2">
           <Link href={getCatUrl('all')} className={`press-scale flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${activeCategory === 'all' ? 'bg-black text-white shadow-md' : 'bg-[#F4F5F7] text-[--color-text-secondary] hover:bg-black/5 hover:text-[--color-text]'}`}>
             All Events
             <span className={`text-xs ml-1 ${activeCategory === 'all' ? 'text-white/70' : 'text-black/40'}`}>({allEventsInMonth.length})</span>
@@ -186,12 +182,20 @@ export default async function CalendarPage({
         )}
 
         {!tokenRow && !oauthError && (
-          <div className="m-8 glass-card flex flex-col items-center gap-4 rounded-3xl px-8 py-16 text-center animate-fade-up border border-black/5">
-            <CalendarIcon className="h-10 w-10 text-[--color-text-tertiary] mb-2" />
-            <h2 className="text-xl font-semibold">No calendar connected</h2>
-            <p className="max-w-sm text-sm text-[--color-text-secondary]">
-              Sign in with Google on the <Link href="/login" className="underline font-medium">login page</Link> to connect your calendar.
-            </p>
+          <div className="m-8 glass-card flex flex-col items-center gap-2 rounded-3xl px-8 py-12 text-center animate-fade-up border border-black/5">
+            <Script type="module" src="/mascot-banner/mascot-banner.js" strategy="afterInteractive" />
+            <mascot-banner
+              size={280}
+              assets="/mascot-banner/"
+              messages="No calendar connected yet|Your birthdays & events live here|Connect Google to bring them in"
+              suppressHydrationWarning
+            />
+            <Link
+              href="/login"
+              className="gradient-button press-scale mt-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              Connect Google Calendar
+            </Link>
           </div>
         )}
 

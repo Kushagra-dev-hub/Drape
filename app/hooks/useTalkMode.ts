@@ -158,6 +158,14 @@ export function useTalkMode(options: UseTalkModeOptions) {
   const isPlaybackActive = useCallback(() => playbackRef.current?.isPlaying() ?? false, []);
   const getCurrentSentenceText = useCallback(() => playbackRef.current?.getCurrentSentenceText() ?? "", []);
 
+  // Answer a clarifying question by tapping an option instead of speaking it —
+  // goes through the exact same turn path server-side as a spoken answer.
+  const sendTextInput = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    socketRef.current?.emit("voice:text-input", { text: trimmed });
+  }, []);
+
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const next = !prev;
@@ -186,5 +194,6 @@ export function useTalkMode(options: UseTalkModeOptions) {
     startVoice,
     stopVoice,
     toggleMute,
+    sendTextInput,
   };
 }

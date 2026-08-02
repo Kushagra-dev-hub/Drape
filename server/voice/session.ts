@@ -22,6 +22,10 @@ type VoiceSessionState = {
   currentAbort: AbortController | null;
   isMuted: boolean;
   durationTimer: ReturnType<typeof setTimeout> | null;
+  // Set once per call (inside voice:start, where `groq` is constructed) so
+  // voice:text-input — registered at the outer connection scope — can feed a
+  // typed/clicked answer through the exact same path as a spoken one.
+  handleUtterance: ((text: string) => void) | null;
 };
 
 function parseCookieHeader(header: string | undefined): { name: string; value: string }[] {
@@ -123,12 +127,14 @@ export function registerVoiceHandlers(io: SocketIOServer) {
       currentAbort: null,
       isMuted: false,
       durationTimer: null,
+      handleUtterance: null,
     };
 
     function endSession(reason: string) {
       state.currentAbort?.abort();
       state.stt?.close();
       state.stt = null;
+      state.handleUtterance = null;
       if (state.durationTimer) {
         clearTimeout(state.durationTimer);
         state.durationTimer = null;
@@ -161,6 +167,23 @@ export function registerVoiceHandlers(io: SocketIOServer) {
 
       const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+      // Shared by real speech (STT onFinal below) and typed/clicked input
+      // (voice:text-input) — both are "the user said something," just from a
+      // different input device, so both go through the identical turn path:
+      // barge in on whatever's still playing, echo it back, run the turn.
+      function handleUserUtterance(text: string) {
+        if (state.isGenerating) {
+          state.currentAbort?.abort();
+          state.isGenerating = false;
+          socket.emit("voice:interrupted");
+        }
+        socket.emit("voice:user-transcript", { text });
+        runVoiceTurn(state, groq, text).catch((err) => {
+          console.error("[Voice] unhandled turn error:", err);
+        });
+      }
+      state.handleUtterance = handleUserUtterance;
+
       try {
         state.stt = createSTTSession({
           onOpen: () => {
@@ -170,17 +193,7 @@ export function registerVoiceHandlers(io: SocketIOServer) {
           onInterim: (text) => {
             socket.emit("voice:interim-transcript", { text });
           },
-          onFinal: (text) => {
-            if (state.isGenerating) {
-              state.currentAbort?.abort();
-              state.isGenerating = false;
-              socket.emit("voice:interrupted");
-            }
-            socket.emit("voice:user-transcript", { text });
-            runVoiceTurn(state, groq, text).catch((err) => {
-              console.error("[Voice] unhandled turn error:", err);
-            });
-          },
+          onFinal: handleUserUtterance,
           onError: (message) => {
             socket.emit("voice:error", { message });
           },
@@ -208,6 +221,14 @@ export function registerVoiceHandlers(io: SocketIOServer) {
       state.isMuted = Boolean(payload?.muted);
     });
 
+    // A clicked option chip (or any other typed answer) — treated exactly
+    // like a spoken utterance from here on.
+    socket.on("voice:text-input", (payload: { text?: string }) => {
+      const text = typeof payload?.text === "string" ? payload.text.trim() : "";
+      if (!text) return;
+      state.handleUtterance?.(text);
+    });
+
     socket.on("voice:stop", () => {
       endSession("client_stopped");
     });
@@ -216,6 +237,7 @@ export function registerVoiceHandlers(io: SocketIOServer) {
       state.currentAbort?.abort();
       state.stt?.close();
       state.stt = null;
+      state.handleUtterance = null;
       if (state.durationTimer) clearTimeout(state.durationTimer);
     });
   });

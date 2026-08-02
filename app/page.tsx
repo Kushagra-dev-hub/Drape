@@ -376,6 +376,10 @@ function HomeContent() {
   // gifts/letter event actually arrives, so results stay on screen once shown.
   const [talkGifts, setTalkGifts] = useState<GiftCandidate[] | null>(null);
   const [talkLetter, setTalkLetter] = useState<string | null>(null);
+  // Unlike gifts/letter, a clarifying question is a one-shot prompt — once
+  // the user answers (by tapping a chip or just speaking through it), it's
+  // stale, so this clears on the next turn rather than persisting.
+  const [talkOptions, setTalkOptions] = useState<ChipOptions | null>(null);
   // Which message talkGifts came from — approving a gift needs the message
   // it actually lives on, which may not be the currently-active turn once
   // gifts are carried forward across turns.
@@ -385,6 +389,7 @@ function HomeContent() {
     const userMessage: Message = { id: nextId(), role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
     setStages([]);
+    setTalkOptions(null);
 
     let activeConversationId = conversationId;
     if (userId) {
@@ -421,6 +426,12 @@ function HomeContent() {
       talkGiftsMessageIdRef.current = assistantId;
     }
     if (event.type === "letter") setTalkLetter(event.content);
+    if (event.type === "options") setTalkOptions({ prompt: event.prompt, options: event.options });
+  }
+
+  function handleTalkSelectOption(value: string) {
+    setTalkOptions(null);
+    talkMode.sendTextInput(value);
   }
 
   function handleTalkTurnComplete(fullText: string) {
@@ -449,6 +460,7 @@ function HomeContent() {
   function handleStartTalkMode() {
     setTalkGifts(null);
     setTalkLetter(null);
+    setTalkOptions(null);
     talkMode.startVoice(messages.map(({ role, content }) => ({ role, content })));
   }
 
@@ -749,11 +761,13 @@ function HomeContent() {
           interimCaption={talkMode.interimCaption}
           gifts={talkGifts}
           letter={talkLetter}
+          options={talkOptions}
           getPlaybackLevel={talkMode.getPlaybackLevel}
           isPlaybackActive={talkMode.isPlaybackActive}
           getCurrentSentenceText={talkMode.getCurrentSentenceText}
           onToggleMute={talkMode.toggleMute}
           onEndCall={talkMode.stopVoice}
+          onSelectOption={handleTalkSelectOption}
           onApproveGift={(giftId) => {
             const id = talkGiftsMessageIdRef.current;
             if (id) handleApproveGift(id, giftId);

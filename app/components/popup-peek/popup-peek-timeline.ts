@@ -76,13 +76,13 @@ export const EXIT_DURATION = 1020;
 // Rig geometry, in design units of the 492 x 608 art plate.
 export const RIG = {
   plate: { w: 492, h: 608 },
-  scale: 0.46,                    // rendered size = plate * scale
-  clip: { w: 226, h: 243 },       // clip box; its BOTTOM edge is the card's top edge
-  offsetLeft: 155,                // clip box left, relative to a 480px-wide card
+  scale: 0.37,                    // rendered size = plate * scale (smaller, less oversized mascot)
+  clip: { w: 182, h: 195 },       // clip box (= plate.w*scale wide); its BOTTOM edge is the card's top edge
+  offsetLeft: 177,                // clip box left, relative to a 480px-wide card (recentred for the smaller clip)
   eyeL: { x: 32,  y: 304, w: 44, h: 100 },
   eyeR: { x: 200, y: 304, w: 72, h: 104 },
   mouth: { cx: 136, cy: 412, halfWidth: 24 },
-  hand: { w: 44, h: 50, marginTop: -24, leftX: 142, rightX: 294, cx: 22 }
+  hand: { w: 44, h: 50, marginTop: -20, leftX: 162, rightX: 283, cx: 22 }
 };
 
 /** The card width the RIG offsets above were authored against. */
