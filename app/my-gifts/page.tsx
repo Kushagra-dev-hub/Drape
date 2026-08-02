@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Script from "next/script";
 import { createClient } from "@/lib/supabase/client";
 import { Navbar, type Profile } from "../components/Navbar";
 import { Sidebar } from "../components/Sidebar";
-import { SearchIcon } from "../components/icons";
 import { listConversations, type ConversationSummary } from "@/lib/supabase/conversations";
 
 type Order = {
@@ -35,10 +35,6 @@ export default function MyGiftsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     async function loadOrders() {
@@ -73,18 +69,6 @@ export default function MyGiftsPage() {
     }
     loadOrders();
   }, [router, supabase]);
-
-  const toggleStatusFilter = (status: string) => {
-    setStatusFilter(prev => 
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
-    );
-  };
-
-  const filteredOrders = orders.filter(order => {
-    if (statusFilter.length > 0 && !statusFilter.includes(order.status)) return false;
-    if (searchQuery && !order.gift_name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -122,82 +106,28 @@ export default function MyGiftsPage() {
         }}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-12">
-        <Navbar profile={profile} />
-        
-        <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
-        {/* Back Button */}
-        <div className="mb-6 flex items-center gap-3 text-sm font-medium text-[--color-text-tertiary]">
-          <Link href="/" className="flex items-center gap-1.5 rounded-lg bg-[--color-primary]/10 px-3 py-1.5 text-[--color-primary] transition-colors hover:bg-[--color-primary]/20">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            Back to Home
-          </Link>
-        </div>
+        <Navbar profile={profile} title="Orders" />
 
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-          {/* Left Column (Filters) */}
-          <div className="glass-card w-full shrink-0 overflow-hidden rounded-2xl lg:w-64">
-            <div className="border-b border-[--color-border] bg-white/40 p-5">
-              <h2 className="text-lg font-bold text-[--color-text]">Filters</h2>
-            </div>
-            
-            <div className="border-b border-[--color-border] p-5">
-              <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-[--color-text-tertiary]">Order Status</h3>
-              <div className="flex flex-col gap-3.5">
-                {["On the way", "Delivered", "Cancelled", "Returned"].map(status => (
-                  <label key={status} className="flex cursor-pointer items-center gap-3">
-                    <input 
-                      type="checkbox"
-                      checked={statusFilter.includes(status)}
-                      onChange={() => toggleStatusFilter(status)}
-                      className="h-4 w-4 rounded border-[--color-border] accent-[--color-primary]"
-                    />
-                    <span className="text-sm font-medium text-[--color-text-secondary]">{status}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-5">
-              <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-[--color-text-tertiary]">Order Time</h3>
-              <div className="flex flex-col gap-3.5">
-                {["Last 30 days", "2024", "2023", "Older"].map(time => (
-                  <label key={time} className="flex cursor-pointer items-center gap-3">
-                    <input 
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-[--color-border] accent-[--color-primary]"
-                    />
-                    <span className="text-sm font-medium text-[--color-text-secondary]">{time}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+        {orders.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center animate-fade-up">
+            <Script type="module" src="/mascot-banner/mascot-banner.js" strategy="afterInteractive" />
+            <mascot-banner
+              size={440}
+              assets="/mascot-banner/"
+              messages="No orders yet|Your gifts will show up here|Let's go find something special"
+              suppressHydrationWarning
+            />
+            <Link
+              href="/"
+              className="gradient-button press-scale mt-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              Start shopping
+            </Link>
           </div>
-
-          {/* Right Column (Search + Orders List) */}
-          <div className="flex-1 space-y-6">
-            {/* Search Bar */}
-            <div className="glass-card flex overflow-hidden rounded-2xl">
-              <input
-                type="text"
-                placeholder="Search your orders here"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent px-5 py-4 text-sm font-medium text-[--color-text] placeholder-[--color-text-tertiary] focus:outline-none"
-              />
-              <button className="gradient-button flex items-center gap-2 px-8 py-4 text-sm font-bold text-white transition-transform active:scale-95">
-                <SearchIcon className="h-4 w-4" />
-                <span>Search Orders</span>
-              </button>
-            </div>
-
-            {/* Orders List */}
+        ) : (
+          <main className="w-full max-w-5xl px-3 pb-8 sm:px-5">
             <div className="flex flex-col gap-5">
-              {filteredOrders.length === 0 ? (
-                <div className="glass-card flex flex-col items-center justify-center rounded-2xl p-16">
-                  <div className="text-lg font-medium text-[--color-text-tertiary]">No orders found</div>
-                </div>
-              ) : (
-                filteredOrders.map(order => (
+              {orders.map(order => (
                   <div key={order.id} className="glass-card group relative cursor-pointer overflow-hidden rounded-2xl p-5 transition-all hover:ring-2 hover:ring-[--color-primary] hover:ring-offset-2">
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
                       {/* Image */}
@@ -244,12 +174,10 @@ export default function MyGiftsPage() {
                       </div>
                     </div>
                   </div>
-                ))
-              )}
+              ))}
             </div>
-          </div>
-        </div>
-        </main>
+          </main>
+        )}
       </div>
     </div>
   );
