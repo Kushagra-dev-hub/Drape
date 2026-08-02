@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { Modal } from "./Modal";
 import type { Profile } from "./Navbar";
 import {
-  CloseIcon,
   SettingsIcon,
   SparkleIcon,
   PanelIcon,
@@ -20,8 +20,6 @@ type TabId = "general" | "preferences" | "integrations" | "account";
 export function SettingsModal({ open, onClose, profile }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>("general");
 
-  if (!open) return null;
-
   const TABS = [
     { id: "general" as const, label: "General", icon: SettingsIcon },
     { id: "preferences" as const, label: "Preferences", icon: SparkleIcon },
@@ -30,9 +28,15 @@ export function SettingsModal({ open, onClose, profile }: SettingsModalProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 sm:p-6 backdrop-blur-sm animate-fade-in">
-      <div className="flex h-full max-h-[600px] w-full max-w-4xl overflow-hidden rounded-3xl border border-[--color-border] bg-white shadow-2xl animate-scale-in">
-        
+    <Modal
+      open={open}
+      onClose={onClose}
+      label="Settings"
+      width={896}
+      cardStyle={{ padding: "76px 0 0", height: 600, maxHeight: "65vh" }}
+    >
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+
         {/* Sidebar */}
         <div className="flex w-64 shrink-0 flex-col border-r border-[--color-border] bg-[--color-surface]/30">
           <div className="p-6">
@@ -58,19 +62,9 @@ export function SettingsModal({ open, onClose, profile }: SettingsModalProps) {
         </div>
 
         {/* Content Area */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-center justify-end p-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-[--color-text-secondary] transition-colors duration-150 hover:bg-[--color-primary]/8"
-              aria-label="Close settings"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-10 pb-10">
+        {/* Dismiss by clicking the scrim or pressing Escape — no close button. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex-1 overflow-y-auto px-10 pb-10 pt-4">
             {activeTab === "general" && (
               <div className="flex flex-col gap-8 animate-fade-in">
                 <h3 className="text-xl font-bold text-[--color-text]">General</h3>
@@ -219,6 +213,6 @@ export function SettingsModal({ open, onClose, profile }: SettingsModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
