@@ -199,7 +199,7 @@ function CheckoutFlow() {
         {/* Stepper — two steps: confirm the gift, then pay on Prava. */}
         <div className="mb-10 flex items-center justify-center gap-4 sm:gap-8">
           <div className="flex flex-col items-center gap-2 text-[--color-primary]">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[--color-primary] font-bold text-white shadow-md">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/5 font-bold">
               1
             </div>
             <span className="text-sm font-semibold">Review Gift</span>

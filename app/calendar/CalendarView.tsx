@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Modal } from "@/app/components/Modal";
 import { SparkleIcon, CakeIcon, HeartIcon, PartyPopperIcon, StarIcon } from "@/app/components/icons";
 import { getCardStyle, formatDate, daysUntil, getNormalizedCategory } from "./utils";
 
@@ -26,8 +27,15 @@ type CalendarViewProps = {
 export function CalendarView({ calendarDays, eventsByDateKey }: CalendarViewProps) {
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
 
-  const selectedEvents = selectedDateKey ? eventsByDateKey[selectedDateKey] || [] : [];
-  const selectedDateObj = selectedDateKey ? new Date(selectedDateKey) : null;
+  // The modal plays a ~1s exit after selectedDateKey clears, so hold on to the
+  // last selection — otherwise the card empties out while the mascot is still
+  // climbing back down.
+  const [lastKey, setLastKey] = useState<string | null>(null);
+  if (selectedDateKey && selectedDateKey !== lastKey) setLastKey(selectedDateKey);
+  const shownKey = selectedDateKey ?? lastKey;
+
+  const selectedEvents = shownKey ? eventsByDateKey[shownKey] || [] : [];
+  const selectedDateObj = shownKey ? new Date(shownKey) : null;
 
   const todayKey = (() => {
     const d = new Date();
@@ -98,26 +106,40 @@ export function CalendarView({ calendarDays, eventsByDateKey }: CalendarViewProp
       </div>
 
       {/* Event Details Modal */}
-      {selectedDateKey && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedDateKey(null)}>
-          <div 
-            className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 relative animate-scale-up max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button 
-              className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors"
-              onClick={() => setSelectedDateKey(null)}
-            >
-              ✕
-            </button>
-            
-            <div className="mb-6 shrink-0">
+      <Modal
+        open={!!selectedDateKey}
+        onClose={() => setSelectedDateKey(null)}
+        label="Day details"
+        width={448}
+        cardStyle={{ padding: "76px 24px 24px", maxHeight: "65vh" }}
+      >
+        <div className="flex min-h-0 flex-1 flex-col">
+            {/* Dismiss by clicking the scrim or pressing Escape — no close button. */}
+            <div className="mb-5 shrink-0">
               <h2 className="text-2xl font-bold">
-                {selectedDateObj ? selectedDateObj.toLocaleDateString("en-US", { month: "long", day: "numeric" }) : ""}
+                {selectedDateObj?.toLocaleDateString("en-US", { month: "long", day: "numeric" }) ?? ""}
+                {selectedDateObj && (
+                  <span className="font-semibold text-[--color-text-secondary]">
+                    , {selectedDateObj.toLocaleDateString("en-US", { weekday: "long" })}
+                  </span>
+                )}
               </h2>
             </div>
-            
-            <div className="flex flex-col gap-4 overflow-y-auto scrollbar-thin pr-2 pb-4">
+
+            {/* scrollbar-hide keeps the scroll but drops the visible track. The
+                mask only kicks in when there's more than one event, so a single
+                card never fades at the bottom for no reason. */}
+            <div
+              className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto scrollbar-hide pb-4"
+              style={
+                selectedEvents.length > 1
+                  ? {
+                      maskImage: "linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%)",
+                      WebkitMaskImage: "linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%)",
+                    }
+                  : undefined
+              }
+            >
               {selectedEvents.map(ev => {
                 const style = getCardStyle(ev.occasion);
                 const chatPrompt = encodeURIComponent(`It's ${ev.summary} on ${formatDate(ev.start)}. Help me find a great gift.`);
@@ -161,9 +183,8 @@ export function CalendarView({ calendarDays, eventsByDateKey }: CalendarViewProp
                 );
               })}
             </div>
-          </div>
         </div>
-      )}
+      </Modal>
     </>
   );
 }

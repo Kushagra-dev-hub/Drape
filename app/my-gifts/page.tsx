@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Navbar, type Profile } from "../components/Navbar";
+import { Sidebar } from "../components/Sidebar";
 import { SearchIcon } from "../components/icons";
+import { listConversations, type ConversationSummary } from "@/lib/supabase/conversations";
 
 type Order = {
   id: string;
@@ -28,6 +30,11 @@ export default function MyGiftsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -43,6 +50,15 @@ export default function MyGiftsPage() {
 
       const name = user.user_metadata?.full_name?.trim() || user.email?.split("@")[0] || "there";
       setProfile({ name, email: user.email || undefined, initial: name.charAt(0).toUpperCase() || "?" });
+      setUserId(user.id);
+
+      // Fetch conversations for sidebar
+      try {
+        const list = await listConversations(supabase);
+        setConversations(list);
+      } catch (err) {
+        console.error("Failed to load conversations", err);
+      }
 
       const { data: userOrders } = await supabase
         .from("orders")
@@ -89,21 +105,35 @@ export default function MyGiftsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[--color-surface] pb-12">
-      <Navbar profile={profile} />
-      
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Breadcrumb / Back Button */}
+    <div className="flex h-screen overflow-hidden bg-[--color-surface]">
+      <Sidebar
+        open={sidebarOpen}
+        onToggle={() => setSidebarOpen((prev) => !prev)}
+        signedIn={Boolean(userId)}
+        profile={profile}
+        conversations={conversations}
+        activeConversationId={null}
+        newChatDisabled={false}
+        onNewChat={() => router.push("/")}
+        onSelectConversation={() => router.push("/")}
+        onLogout={async () => {
+          await supabase.auth.signOut();
+          router.push("/login");
+        }}
+      />
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-12">
+        <Navbar profile={profile} />
+        
+        <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+        {/* Back Button */}
         <div className="mb-6 flex items-center gap-3 text-sm font-medium text-[--color-text-tertiary]">
           <Link href="/" className="flex items-center gap-1.5 rounded-lg bg-[--color-primary]/10 px-3 py-1.5 text-[--color-primary] transition-colors hover:bg-[--color-primary]/20">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             Back to Home
           </Link>
-          <span className="text-[--color-border-focus]">|</span>
-          <span>My Account <span className="mx-2">&gt;</span> <span className="text-[--color-text]">My Gifts</span></span>
         </div>
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
           {/* Left Column (Filters) */}
           <div className="glass-card w-full shrink-0 overflow-hidden rounded-2xl lg:w-64">
             <div className="border-b border-[--color-border] bg-white/40 p-5">
@@ -219,7 +249,8 @@ export default function MyGiftsPage() {
             </div>
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
