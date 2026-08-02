@@ -358,6 +358,17 @@ function HomeContent() {
   // have somewhere to attach to, regardless of arrival order.
   const talkAssistantIdRef = useRef<string | null>(null);
   const talkConversationIdRef = useRef<string | null>(null);
+  // Last gifts/letter shown in the voice overlay. Deliberately NOT derived from
+  // "the current turn's message" — a fresh (empty) assistant message is created
+  // at the start of every turn, so that lookup would blank the cards the moment
+  // the next turn starts. These persist across turns and only change when a new
+  // gifts/letter event actually arrives, so results stay on screen once shown.
+  const [talkGifts, setTalkGifts] = useState<GiftCandidate[] | null>(null);
+  const [talkLetter, setTalkLetter] = useState<string | null>(null);
+  // Which message talkGifts came from — approving a gift needs the message
+  // it actually lives on, which may not be the currently-active turn once
+  // gifts are carried forward across turns.
+  const talkGiftsMessageIdRef = useRef<string | null>(null);
 
   async function handleTalkUserTranscript(text: string) {
     const userMessage: Message = { id: nextId(), role: "user", content: text };
@@ -394,6 +405,11 @@ function HomeContent() {
     const assistantId = talkAssistantIdRef.current;
     if (!assistantId) return;
     applyEvent(event as StreamEvent, assistantId, talkConversationIdRef.current);
+    if (event.type === "gifts") {
+      setTalkGifts(event.items);
+      talkGiftsMessageIdRef.current = assistantId;
+    }
+    if (event.type === "letter") setTalkLetter(event.content);
   }
 
   function handleTalkTurnComplete(fullText: string) {
@@ -420,6 +436,8 @@ function HomeContent() {
   });
 
   function handleStartTalkMode() {
+    setTalkGifts(null);
+    setTalkLetter(null);
     talkMode.startVoice(messages.map(({ role, content }) => ({ role, content })));
   }
 
@@ -707,12 +725,20 @@ function HomeContent() {
         <TalkModeOverlay
           connectionState={talkMode.connectionState}
           isMuted={talkMode.isMuted}
-          isAgentSpeaking={talkMode.isAgentSpeaking}
           isProcessing={talkMode.isProcessing}
           interimCaption={talkMode.interimCaption}
-          agentCaption={talkMode.agentCaption}
+          gifts={talkGifts}
+          letter={talkLetter}
+          getPlaybackLevel={talkMode.getPlaybackLevel}
+          isPlaybackActive={talkMode.isPlaybackActive}
+          getCurrentSentenceText={talkMode.getCurrentSentenceText}
           onToggleMute={talkMode.toggleMute}
           onEndCall={talkMode.stopVoice}
+          onApproveGift={(giftId) => {
+            const id = talkGiftsMessageIdRef.current;
+            if (id) handleApproveGift(id, giftId);
+          }}
+          onSelectVariant={handleVariantCheckout}
         />
       )}
     </div>

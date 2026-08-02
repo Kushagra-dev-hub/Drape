@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CopyIcon, MailIcon, CheckCircleIcon } from "./icons";
 
-export function LetterCard({ letter }: { letter: string }) {
+export function LetterCard({ letter, compact = false }: { letter: string; compact?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -15,11 +15,11 @@ export function LetterCard({ letter }: { letter: string }) {
   }
 
   return (
-    <div className="glass-card relative overflow-hidden rounded-2xl p-6">
+    <div className={`glass-card relative overflow-hidden rounded-2xl ${compact ? "p-4" : "p-6"}`}>
       {/* Decorative top gradient bar */}
       <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-[--color-accent-rose] via-[--color-accent-lavender] to-[--color-accent-mint]" />
 
-      <div className="mb-4 flex items-center justify-between text-[--color-text-tertiary]">
+      <div className={`flex items-center justify-between text-[--color-text-tertiary] ${compact ? "mb-2" : "mb-4"}`}>
         <div className="flex items-center gap-2">
           <MailIcon className="h-4 w-4" />
           <span className="text-xs font-semibold uppercase tracking-wider">A note to include</span>
@@ -42,7 +42,11 @@ export function LetterCard({ letter }: { letter: string }) {
           )}
         </button>
       </div>
-      <p className="whitespace-pre-wrap font-serif text-[15px] leading-relaxed text-[--color-text]">
+      <p
+        className={`scrollbar-hide whitespace-pre-wrap font-serif text-[--color-text] ${
+          compact ? "max-h-[40vh] overflow-y-auto pr-1 text-sm leading-relaxed" : "text-[15px] leading-relaxed"
+        }`}
+      >
         {letter}
       </p>
     </div>
