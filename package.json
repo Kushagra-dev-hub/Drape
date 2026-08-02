@@ -2,6 +2,9 @@
   "name": "momento",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--max-http-header-size=65536 tsx watch --ignore \"app/**\" --ignore \"lib/**\" server.ts",
     "build": "next build",

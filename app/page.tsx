@@ -85,8 +85,11 @@ function HomeContent() {
   const router = useRouter();
 
   // Pre-fill the input from ?q= (e.g. from calendar "Shop for a gift" links).
+  // Intentionally an effect, not a lazy initializer: this must re-sync when
+  // searchParams changes on client-side navigation without a remount.
   useEffect(() => {
     const q = searchParams.get("q");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (q) setInput(decodeURIComponent(q));
   }, [searchParams]);
 
