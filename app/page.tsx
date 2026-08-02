@@ -15,6 +15,7 @@ import {
   updateMessageLetter,
   type ConversationSummary,
 } from "@/lib/supabase/conversations";
+import { listWishlistGiftIds } from "@/lib/supabase/wishlist";
 import { GiftCard } from "./components/GiftCard";
 import { LetterCard } from "./components/LetterCard";
 import { SendIcon, SparkleIcon } from "./components/icons";
@@ -62,6 +63,7 @@ function HomeContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -116,6 +118,15 @@ function HomeContent() {
           if (active) setConversations(list);
         } catch (err) {
           console.error("Failed to load conversations", err);
+        }
+
+        // So a gift already on the wishlist renders with a filled heart here
+        // instead of looking unsaved.
+        try {
+          const ids = await listWishlistGiftIds(supabase);
+          if (active) setWishlistedIds(new Set(ids));
+        } catch (err) {
+          console.error("Failed to load wishlist", err);
         }
 
         if (active && importedId) {
@@ -501,6 +512,15 @@ function HomeContent() {
                               key={g.id}
                               gift={g}
                               onApprove={(giftId) => handleApproveGift(m.id, giftId)}
+                              initiallyWishlisted={wishlistedIds.has(g.id)}
+                              onWishlistChange={(giftId, wishlisted) =>
+                                setWishlistedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (wishlisted) next.add(giftId);
+                                  else next.delete(giftId);
+                                  return next;
+                                })
+                              }
                             />
                           ))}
                         </div>
