@@ -6,9 +6,10 @@ import { runTool, type GiftCandidate } from "@/lib/gifts";
 import { getUpcomingOccasions, formatEventsForAgent } from "@/lib/calendar";
 
 const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-// analyze_recipient, analyze_occasion, analyze_budget, find_gifts,
-// present_gifts, write_letter, then a final text-only round — 7 is the
-// exact minimum, 8 gives one round of headroom.
+// Longest single-turn chain: analyze_recipient, analyze_occasion,
+// analyze_budget, find_gifts, present_gifts, then a final text-only round
+// (write_letter now happens on its own turn, after the user confirms they
+// want a note) — 6 is the exact minimum, 8 gives headroom.
 const MAX_TOOL_ROUNDS = 8;
 const FALLBACK_GIFT_COUNT = 4;
 const STAGE_PACING_MS = 450;

@@ -115,6 +115,31 @@ function scoreWords(words: string[], interests: string[]): number {
   return score;
 }
 
+// Strip numbers/punctuation and drop short tokens ("c", "e", "16%") before
+// matching — real ingredient/spec tokens otherwise substring-collide with
+// unrelated interests (e.g. the "c" in "Vitamin C Serum" matching "coffee").
+function extractWords(text: string): string[] {
+  return (text.toLowerCase().match(/[a-z]+/g) ?? []).filter((word) => word.length >= 3);
+}
+
+// Many live merchants use branded/marketing titles ("Warm Spell Look") that
+// never literally contain the product's actual category — a real clothing
+// item can lose every tie to an unrelated item whose title happens to say
+// "shoes". The description is where that real category language actually
+// shows up ("regular-fit shirt", "cotton-poly blend"), so it's a second,
+// weaker signal: only exact-word hits count (no substring fuzz, since prose
+// is noisy), and each interest counts once no matter how often it repeats,
+// so a long description can't out-score a short one just by being longer.
+function scoreDescription(html: string | undefined, interests: string[]): number {
+  if (!html) return 0;
+  const words = new Set(extractWords(html.replace(/<[^>]+>/g, " ")));
+  let score = 0;
+  for (const interest of interests) {
+    if (words.has(interest)) score += 1;
+  }
+  return score;
+}
+
 function scoreMockCatalog(interests: string[], maxBudget: number, excludeNames: string[]): ScoredGift[] {
   const affordable = CATALOG.filter((g) => g.price <= maxBudget).filter(
     (g) => !excludeNames.some((ex) => ex && g.name.toLowerCase().includes(ex))
@@ -183,14 +208,9 @@ async function scoreLiveMerchants(
     for (const product of products) {
       const gift = mapLiveProductToGift(product, merchant, maxBudget, excludeNames);
       if (!gift) continue;
-      // Strip numbers/punctuation and drop short tokens ("c", "e", "16%")
-      // before matching — real ingredient/spec tokens in product titles
-      // otherwise substring-collide with unrelated interests (e.g. the "c"
-      // in "Vitamin C Serum" matching inside "coffee").
-      const titleWords = (product.title.toLowerCase().match(/[a-z]+/g) ?? []).filter(
-        (word) => word.length >= 3
-      );
-      scored.push({ gift, score: scoreWords(titleWords, interests) });
+      const titleScore = scoreWords(extractWords(product.title), interests);
+      const descriptionScore = scoreDescription(product.description?.html, interests);
+      scored.push({ gift, score: titleScore + descriptionScore });
     }
   }
   return scored;
