@@ -1,8 +1,8 @@
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 import { STAGE_LABELS, TOOLS } from "@/lib/agent";
 import { runTool, giftsForModel, type GiftCandidate } from "@/lib/gifts";
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 // Longest single-turn chain: find_gifts, present_gifts, then a final
 // text-only round (write_letter happens on its own turn, after the user
 // confirms they want a note) — 6 is the exact minimum, 8 gives headroom.
@@ -16,19 +16,25 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// OpenAI returns a 429 both for short-lived rate limits and for a hard
-// billing quota being exhausted — the two need different messaging since
-// only one is worth retrying soon.
-export function describeOpenAIError(err: unknown): string | null {
-  if (!(err instanceof OpenAI.APIError) || err.status !== 429) return null;
-  if (err.code === "insufficient_quota") {
-    return "Memento's hit its usage limit for now — please try again later.";
+// Groq returns a 429 both for short-lived burst rate limits and for a hard
+// daily token quota — the two need different messaging since only one is
+// worth retrying soon.
+export function describeGroqError(err: unknown): string | null {
+  if (!(err instanceof Groq.APIError) || err.status !== 429) return null;
+  const raw = err.message || "";
+  if (/tokens per day/i.test(raw)) {
+    const match = raw.match(/try again in (?:(\d+)m)?([\d.]+)s/i);
+    const wait = match ? `${match[1] ? `${match[1]}m ` : ""}${Math.ceil(Number(match[2]))}s` : null;
+    return `Memento's hit its daily usage limit for now${wait ? ` — try again in about ${wait}` : ", please try again later"}.`;
   }
   return "Memento's getting a lot of requests right now — give it a few seconds and try again.";
 }
 
-// A malformed tool call or a transient 5xx is usually a one-off, not a real
-// request problem — retrying the identical request almost always succeeds.
+// Groq's open-weight models occasionally emit a malformed tool call
+// (e.g. "<function=...>" text instead of a structured tool_calls block),
+// which the API rejects with a 400 tool_use_failed. It's usually a
+// one-off sampling quirk, not a real request problem — retrying the
+// identical request almost always succeeds.
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= MAX_COMPLETION_RETRIES; attempt++) {
@@ -37,7 +43,7 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
     } catch (err) {
       lastError = err;
       const isRetryable =
-        err instanceof OpenAI.APIError &&
+        err instanceof Groq.APIError &&
         (err.status === 400 || err.status === 429 || (err.status ?? 0) >= 500);
       if (!isRetryable || attempt === MAX_COMPLETION_RETRIES) break;
       await sleep(300 * (attempt + 1));
@@ -63,14 +69,14 @@ export type AgentTurnResult = {
 export type AgentConvo = any[];
 
 /**
- * Runs one turn of the tool-calling loop against OpenAI — shared by the text
+ * Runs one turn of the tool-calling loop against Groq — shared by the text
  * chat route (app/api/chat/route.ts) and the voice pipeline
  * (server/voice/session.ts). Mutates `convo` in place (pushes the
  * assistant/tool messages for this turn), exactly like the original inline
  * version did, so callers keep a growing conversation across turns.
  */
 export async function runAgentTurn(
-  client: OpenAI,
+  groq: Groq,
   convo: AgentConvo,
   opts: { onEvent?: (e: AgentTurnEvent) => void; signal?: AbortSignal } = {}
 ): Promise<AgentTurnResult> {
@@ -88,7 +94,7 @@ export async function runAgentTurn(
     if (signal?.aborted) break;
 
     const completion = await withRetry(() =>
-      client.chat.completions.create(
+      groq.chat.completions.create(
         {
           model: MODEL,
           messages: convo,
@@ -107,11 +113,6 @@ export async function runAgentTurn(
       convo.push(message);
 
       for (const call of message.tool_calls) {
-        // TOOLS (lib/agent.ts) only ever defines "function" tools, so this
-        // is always true in practice — narrows the type union so
-        // call.function is accessible below.
-        if (call.type !== "function") continue;
-
         const toolName = call.function.name;
         const label = STAGE_LABELS[toolName] ?? "Working on it…";
 

@@ -213,7 +213,7 @@ export default function LoginPage() {
               disabled={loading}
               onMouseEnter={() => setPipState((s) => (s === "idle" ? "hover" : s))}
               onMouseLeave={() => setPipState((s) => (s === "hover" ? "idle" : s))}
-              className="gradient-button press-scale mt-1 rounded-full px-5 py-3.5 text-[15px] font-semibold text-[--color-text-inverse] disabled:opacity-60"
+              className="gradient-button press-scale mt-1 rounded-full px-5 py-3.5 text-[15px] font-semibold text-white disabled:opacity-60"
             >
               {loading ? "Signing in…" : "Login"}
             </button>

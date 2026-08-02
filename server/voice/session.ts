@@ -1,8 +1,8 @@
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 import type { Server as SocketIOServer, Socket } from "socket.io";
 import { createServerClient } from "@supabase/ssr";
 import { SYSTEM_PROMPT } from "@/lib/agent";
-import { runAgentTurn, describeOpenAIError, type AgentConvo, type AgentTurnEvent } from "@/lib/agent-runtime";
+import { runAgentTurn, describeGroqError, type AgentConvo, type AgentTurnEvent } from "@/lib/agent-runtime";
 import { getUpcomingOccasions, formatEventsForAgent } from "@/lib/calendar";
 import { createSTTSession, type STTSession } from "./deepgram-stt";
 import { splitIntoSentences, synthesizeSpeech } from "./tts";
@@ -22,7 +22,7 @@ type VoiceSessionState = {
   currentAbort: AbortController | null;
   isMuted: boolean;
   durationTimer: ReturnType<typeof setTimeout> | null;
-  // Set once per call (inside voice:start, where `client` is constructed) so
+  // Set once per call (inside voice:start, where `groq` is constructed) so
   // voice:text-input — registered at the outer connection scope — can feed a
   // typed/clicked answer through the exact same path as a spoken one.
   handleUtterance: ((text: string) => void) | null;
@@ -74,7 +74,7 @@ function translateAgentEvent(socket: Socket, event: AgentTurnEvent) {
   }
 }
 
-async function runVoiceTurn(state: VoiceSessionState, client: OpenAI, userText: string) {
+async function runVoiceTurn(state: VoiceSessionState, groq: Groq, userText: string) {
   state.convo.push({ role: "user", content: userText });
 
   const controller = new AbortController();
@@ -82,7 +82,7 @@ async function runVoiceTurn(state: VoiceSessionState, client: OpenAI, userText: 
   state.isGenerating = true;
 
   try {
-    const result = await runAgentTurn(client, state.convo, {
+    const result = await runAgentTurn(groq, state.convo, {
       signal: controller.signal,
       onEvent: (e) => translateAgentEvent(state.socket, e),
     });
@@ -107,7 +107,7 @@ async function runVoiceTurn(state: VoiceSessionState, client: OpenAI, userText: 
     if (controller.signal.aborted) return;
     console.error("[Voice] turn error:", err);
     state.socket.emit("voice:error", {
-      message: describeOpenAIError(err) ?? "I got tripped up putting that together — could you say that again?",
+      message: describeGroqError(err) ?? "I got tripped up putting that together — could you say that again?",
     });
   } finally {
     if (state.currentAbort === controller) {
@@ -143,8 +143,8 @@ export function registerVoiceHandlers(io: SocketIOServer) {
     }
 
     socket.on("voice:start", async (payload: { history?: IncomingHistoryMessage[] }) => {
-      if (!process.env.OPENAI_API_KEY) {
-        socket.emit("voice:error", { message: "OPENAI_API_KEY is not set on the server." });
+      if (!process.env.GROQ_API_KEY) {
+        socket.emit("voice:error", { message: "GROQ_API_KEY is not set on the server." });
         return;
       }
       if (!process.env.DEEPGRAM_API_KEY) {
@@ -165,7 +165,7 @@ export function registerVoiceHandlers(io: SocketIOServer) {
         ...history.map((m) => ({ role: m.role, content: m.content })),
       ];
 
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
       // Shared by real speech (STT onFinal below) and typed/clicked input
       // (voice:text-input) — both are "the user said something," just from a
@@ -178,7 +178,7 @@ export function registerVoiceHandlers(io: SocketIOServer) {
           socket.emit("voice:interrupted");
         }
         socket.emit("voice:user-transcript", { text });
-        runVoiceTurn(state, client, text).catch((err) => {
+        runVoiceTurn(state, groq, text).catch((err) => {
           console.error("[Voice] unhandled turn error:", err);
         });
       }

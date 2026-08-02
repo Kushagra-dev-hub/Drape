@@ -1,16 +1,16 @@
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { SYSTEM_PROMPT } from "@/lib/agent";
-import { runAgentTurn, describeOpenAIError, type AgentConvo } from "@/lib/agent-runtime";
+import { runAgentTurn, describeGroqError, type AgentConvo } from "@/lib/agent-runtime";
 import { getUpcomingOccasions, formatEventsForAgent } from "@/lib/calendar";
 
 type IncomingMessage = { role: "user" | "assistant"; content: string };
 
 export async function POST(req: Request) {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return Response.json(
-      { error: "OPENAI_API_KEY is not set on the server. Add it to .env.local and restart the dev server." },
+      { error: "GROQ_API_KEY is not set on the server. Add it to .env.local and restart the dev server." },
       { status: 500 }
     );
   }
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     // Non-fatal — proceed without calendar context.
   }
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         // AFTER "message", since the client creates the assistant bubble on
         // the message event and can't attach to one that doesn't exist yet.
         // Sent from the return value below, in the original order, instead.
-        const result = await runAgentTurn(client, convo, {
+        const result = await runAgentTurn(groq, convo, {
           onEvent: (e) => {
             if (e.type === "stage") send(e);
           },
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
         send({
           type: "error",
           message:
-            describeOpenAIError(err) ??
+            describeGroqError(err) ??
             "I got tripped up putting that together — mind trying that again, maybe with a bit less in one message?",
         });
         finish();
