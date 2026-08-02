@@ -92,24 +92,7 @@ export default function WishlistPage() {
         <Navbar profile={profile} />
 
         <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
-          <div className="mb-6 flex items-center gap-3 text-sm font-medium text-[--color-text-tertiary]">
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 rounded-lg bg-[--color-primary]/10 px-3 py-1.5 text-[--color-primary] transition-colors hover:bg-[--color-primary]/20"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-              Back to Home
-            </Link>
-          </div>
-
-          <div className="mb-8 flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight text-[--color-text]">Wishlist</h1>
-            {items.length > 0 && (
-              <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
-                {items.length}
-              </span>
-            )}
-          </div>
+          <h1 className="mb-8 text-3xl font-bold tracking-tight text-[--color-text]">Wishlist</h1>
 
           {items.length === 0 ? (
             <div className="glass-card flex flex-col items-center justify-center gap-3 rounded-2xl p-16 text-center">
