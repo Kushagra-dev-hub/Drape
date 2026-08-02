@@ -62,20 +62,19 @@ export default function MyGiftsPage() {
 
   // Review flow: locally-persisted reviews (works even without DB columns) plus
   // the modal state for the order being reviewed right now.
-  const [localReviews, setLocalReviews] = useState<Record<string, Review>>({});
+  const [localReviews, setLocalReviews] = useState<Record<string, Review>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem(REVIEWS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
   const [reviewing, setReviewing] = useState<Order | null>(null);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(REVIEWS_KEY);
-      if (raw) setLocalReviews(JSON.parse(raw));
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   useEffect(() => {
     async function loadOrders() {
@@ -114,7 +113,6 @@ export default function MyGiftsPage() {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeReview(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewing]);
 
   const statuses = useMemo(() => {

@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { google, type calendar_v3 } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getGoogleTokens, deleteGoogleTokens } from "@/lib/supabase/google-tokens";
 
@@ -98,7 +98,7 @@ export async function getUpcomingOccasions(
 
       let pageToken: string | undefined = undefined;
       while (true) {
-        const response: any = await calendar.events.list({
+        const response = (await calendar.events.list({
           calendarId: calId,
           timeMin: now.toISOString(),
           timeMax: future.toISOString(),
@@ -106,7 +106,7 @@ export async function getUpcomingOccasions(
           orderBy: "startTime",
           maxResults: 2500,
           pageToken: pageToken,
-        });
+        })) as { data: calendar_v3.Schema$Events };
 
         const items = response.data.items ?? [];
         const filtered = isOccasionCalendar ? items : items.filter(isGiftOccasion);

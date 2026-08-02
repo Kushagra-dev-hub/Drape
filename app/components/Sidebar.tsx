@@ -13,7 +13,6 @@ import {
   HamburgerIcon,
   LogoutIcon,
   PlusIcon,
-  SettingsIcon,
   TrashIcon,
   UserIcon,
   HeartIcon,
