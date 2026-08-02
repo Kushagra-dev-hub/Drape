@@ -7,7 +7,6 @@ import type { Profile } from "./Navbar";
 import {
   ArrowUpRightIcon,
   CalendarIcon,
-  ChatBubbleIcon,
   ChevronRightIcon,
   ClockIcon,
   CloseIcon,
@@ -15,11 +14,10 @@ import {
   HamburgerIcon,
   LogoutIcon,
   PlusIcon,
-  SearchIcon,
   SettingsIcon,
   TrashIcon,
   UserIcon,
-  UsersIcon,
+  HeartIcon,
 } from "./icons";
 
 
@@ -27,7 +25,7 @@ const railIconButton =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[--color-text-secondary] transition-all duration-200 hover:bg-[--color-primary]/8 hover:text-[--color-text] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40";
 
 const STATIC_NAV_ITEMS = [
-  { label: "Recipients", icon: UsersIcon, href: "/recipients" },
+  { label: "Wishlist", icon: HeartIcon, href: "/wishlist" },
   { label: "My Gifts", icon: ClockIcon, href: "/my-gifts" },
 ];
 
@@ -219,27 +217,16 @@ export function Sidebar({
           >
             <PlusIcon className="h-[18px] w-[18px]" />
           </button>
-          <button
-            type="button"
-            onClick={onToggle}
-            title="Search"
-            aria-label="Search"
-            className={railIconButton}
-          >
-            <SearchIcon className="h-[18px] w-[18px]" />
-          </button>
-          <button
-            type="button"
-            onClick={onToggle}
-            title="Chat History"
-            aria-label="Chat History"
-            className={railIconButton}
-          >
-            <ChatBubbleIcon className="h-[18px] w-[18px]" />
-          </button>
-          <Link href="/calendar" title="Calendar" aria-label="Calendar" className={railIconButton}>
+          {/* Mirrors the expanded nav exactly — same icons, same order. The
+              static items are mapped from one array so the two can't drift. */}
+          <Link href="/calendar" title="Upcoming Events" aria-label="Upcoming Events" className={railIconButton}>
             <CalendarIcon className="h-[18px] w-[18px]" />
           </Link>
+          {STATIC_NAV_ITEMS.map(({ label, icon: Icon, href }) => (
+            <Link key={label} href={href} title={label} aria-label={label} className={railIconButton}>
+              <Icon className="h-[18px] w-[18px]" />
+            </Link>
+          ))}
 
           <div className="flex-1" />
 
@@ -268,7 +255,12 @@ export function Sidebar({
       <aside className="glass-panel flex w-72 shrink-0 flex-col transition-[width] duration-300 ease-in-out">
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scrollbar-thin px-4 pb-5 pt-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+            {/* Wordmark doubles as the home link from any screen. */}
+            <Link
+              href="/"
+              aria-label="Memento — go to home"
+              className="flex items-center gap-2.5 rounded-xl px-1 py-0.5 transition-opacity duration-150 hover:opacity-70"
+            >
               <Image
                 src="/logo.png"
                 alt="Memento"
@@ -280,7 +272,7 @@ export function Sidebar({
               <span className="text-lg font-bold tracking-wide text-[--color-text]">
                 Memento
               </span>
-            </div>
+            </Link>
             <button
               type="button"
               onClick={onToggle}
