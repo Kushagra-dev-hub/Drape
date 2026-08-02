@@ -2,7 +2,7 @@ import Groq from "groq-sdk";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { SYSTEM_PROMPT, STAGE_LABELS, TOOLS } from "@/lib/agent";
-import { runTool, type GiftCandidate } from "@/lib/gifts";
+import { runTool, giftsForModel, type GiftCandidate } from "@/lib/gifts";
 import { getUpcomingOccasions, formatEventsForAgent } from "@/lib/calendar";
 
 const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
@@ -10,9 +10,11 @@ const MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 // analyze_budget, find_gifts, present_gifts, then a final text-only round
 // (write_letter now happens on its own turn, after the user confirms they
 // want a note) — 6 is the exact minimum, 8 gives headroom.
-const MAX_TOOL_ROUNDS = 8;
+const MAX_TOOL_ROUNDS = 6;
 const FALLBACK_GIFT_COUNT = 4;
-const STAGE_PACING_MS = 450;
+// Tiny cosmetic beat so stage chips don't flash by — the analyzers that used to
+// pad the chain are gone, so a turn is now ~2 rounds (find_gifts → present_gifts).
+const STAGE_PACING_MS = 120;
 const MAX_COMPLETION_RETRIES = 2;
 
 type IncomingMessage = { role: "user" | "assistant"; content: string };
@@ -119,6 +121,9 @@ export async function POST(req: Request) {
         let candidatePool: GiftCandidate[] | null = null;
         let finalGifts: GiftCandidate[] | null = null;
         let letterContent: string | null = null;
+        // Clickable choice chips (Running / Sneakers …) from present_options,
+        // shown with the assistant's final message on this turn.
+        let optionsToShow: { prompt: string; options: { label: string; value: string }[] } | null = null;
 
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
           const completion = await withRetry(() =>
@@ -165,13 +170,33 @@ export async function POST(req: Request) {
                 const letter = typeof args.letter === "string" ? args.letter.trim() : "";
                 if (letter) letterContent = letter;
                 result = { ok: true };
+              } else if (toolName === "present_options") {
+                // Show clickable chips with the reply. Local UI state — a bare
+                // ack goes back to the model so it doesn't re-ask in prose.
+                const prompt = typeof args.prompt === "string" ? args.prompt : "";
+                const rawOptions = Array.isArray(args.options) ? args.options : [];
+                const opts = rawOptions
+                  .map((o) => {
+                    const oo = o as { label?: unknown; value?: unknown };
+                    return { label: String(oo.label ?? ""), value: String(oo.value ?? oo.label ?? "") };
+                  })
+                  .filter((o) => o.label && o.value)
+                  .slice(0, 4);
+                if (prompt && opts.length > 0) optionsToShow = { prompt, options: opts };
+                result = { ok: true, shown: opts.length };
               } else {
                 result = await runTool(toolName, args);
                 if (toolName === "find_gifts") {
-                  candidatePool = (result as { items: GiftCandidate[] }).items;
-                  // Safe default so a card set still shows even if the model
-                  // never calls present_gifts.
-                  finalGifts = candidatePool.slice(0, FALLBACK_GIFT_COUNT);
+                  const raw = result as { items: GiftCandidate[]; pastGifts?: unknown[] };
+                  const items = raw.items;
+                  // Keep the FULL items (with variants) for the client; the
+                  // safe default shows cards even if present_gifts is skipped.
+                  candidatePool = items;
+                  finalGifts = items.slice(0, FALLBACK_GIFT_COUNT);
+                  // Send the model only a compact projection (variant arrays
+                  // would burn tokens) plus the recipient's past gifts so it
+                  // can avoid repeats.
+                  result = { items: giftsForModel(items), pastGifts: raw.pastGifts ?? [] };
                 }
               }
 
@@ -189,6 +214,9 @@ export async function POST(req: Request) {
           send({ type: "message", content: message.content ?? "" });
           if (finalGifts && finalGifts.length > 0) {
             send({ type: "gifts", items: finalGifts });
+          }
+          if (optionsToShow) {
+            send({ type: "options", prompt: optionsToShow.prompt, options: optionsToShow.options });
           }
           if (letterContent) {
             send({ type: "letter", content: letterContent });

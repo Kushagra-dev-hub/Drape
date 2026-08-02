@@ -8,20 +8,35 @@ import { randomUUID } from "node:crypto";
 const DEFAULT_PROFILE_URL =
   "https://shopify.dev/ucp/agent-profiles/2026-04-08/valid-with-capabilities.json";
 
-const SEARCH_TIMEOUT_MS = 3500;
+// find_gifts fans out to every merchant in parallel and waits for all to
+// settle, so the whole search is bounded by the slowest store — keep this
+// tight so one sluggish merchant can't stall the reply.
+const SEARCH_TIMEOUT_MS = 2500;
+
+/** A single option assignment on a variant, e.g. { name: "Size", label: "UK-09" }. */
+export type LiveVariantOption = { name: string; label: string };
 
 export type LiveVariant = {
   id: string;
+  title?: string;
   price: { amount: number; currency: string };
   media?: { type: string; url: string }[];
+  /** Per-variant option assignments (Color / Size), as returned by Shopify UCP. */
+  options?: LiveVariantOption[];
+  availability?: { available?: boolean };
   checkout_url: string;
 };
+
+/** A product-level option group, e.g. { name: "Size", values: [{label:"UK-06"}, …] }. */
+export type LiveProductOption = { name: string; values: { label: string }[] };
 
 export type LiveProduct = {
   id: string;
   title: string;
   description?: { html?: string };
   price_range: { min: { amount: number; currency: string } };
+  /** Option groups (Color, Size) so the agent can offer size/colour choices. */
+  options?: LiveProductOption[];
   variants: LiveVariant[];
 };
 
