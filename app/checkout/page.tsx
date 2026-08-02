@@ -228,14 +228,14 @@ function CheckoutFlow() {
         {/* Stepper */}
         <div className="mb-10 flex items-center justify-center gap-4 sm:gap-8">
           <div className={`flex flex-col items-center gap-2 ${step >= 1 ? "text-[--color-primary]" : "text-[--color-text-tertiary]"}`}>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-full font-bold ${step >= 1 ? "bg-[--color-primary] text-white shadow-md" : "bg-black/5"}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-full font-bold ${step >= 1 ? "bg-[#0A2F2A] text-white shadow-md" : "bg-black/5"}`}>
               1
             </div>
             <span className="text-sm font-semibold">Address</span>
           </div>
-          <div className={`h-1 w-16 sm:w-32 rounded-full ${step >= 2 ? "bg-[--color-primary]" : "bg-black/10"}`} />
+          <div className={`h-1 w-16 sm:w-32 rounded-full ${step >= 2 ? "bg-[#0A2F2A]" : "bg-black/10"}`} />
           <div className={`flex flex-col items-center gap-2 ${step >= 2 ? "text-[--color-primary]" : "text-[--color-text-tertiary]"}`}>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-full font-bold ${step >= 2 ? "bg-[--color-primary] text-white shadow-md" : "bg-black/5"}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-full font-bold ${step >= 2 ? "bg-[#0A2F2A] text-white shadow-md" : "bg-black/5"}`}>
               2
             </div>
             <span className="text-sm font-semibold">Order Summary</span>
@@ -275,7 +275,7 @@ function CheckoutFlow() {
                           onClick={() => selectSavedAddress(addr)}
                           className={`group relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200 ${
                             selectedAddressId === addr.id && !showAddressForm
-                              ? "border-[--color-primary] bg-[--color-primary]/5 shadow-sm"
+                              ? "border-[--color-primary] bg-[#0A2F2A]/5 shadow-sm"
                               : "border-[--color-border] hover:border-[--color-border-hover] hover:bg-[--color-surface]"
                           }`}
                         >
@@ -288,7 +288,7 @@ function CheckoutFlow() {
                                   : "border-[--color-text-tertiary]"
                               }`}>
                                 {selectedAddressId === addr.id && !showAddressForm && (
-                                  <div className="h-2.5 w-2.5 rounded-full bg-[--color-primary]" />
+                                  <div className="h-2.5 w-2.5 rounded-full bg-[#0A2F2A]" />
                                 )}
                               </div>
                               <div>
@@ -383,7 +383,7 @@ function CheckoutFlow() {
                               onClick={() => setAddressLabel(l)}
                               className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
                                 addressLabel === l
-                                  ? "bg-[--color-primary] text-white shadow-sm"
+                                  ? "bg-[#0A2F2A] text-white shadow-sm"
                                   : "bg-black/5 text-[--color-text-secondary] hover:bg-black/10"
                               }`}
                             >
