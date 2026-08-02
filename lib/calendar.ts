@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getGoogleTokens } from "@/lib/supabase/google-tokens";
+import { getGoogleTokens, deleteGoogleTokens } from "@/lib/supabase/google-tokens";
 
 // Keywords in event titles/descriptions that suggest a gift occasion.
 export const OCCASION_KEYWORDS = [
@@ -137,6 +137,20 @@ export async function getUpcomingOccasions(
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   } catch (err) {
     console.error("[calendar] Failed to fetch events:", err);
+
+    // A stored token that lacks calendar scope (e.g. the user signed in with
+    // Google but declined the calendar permission on the consent screen)
+    // fails every request with this error. The row in google_calendar_tokens
+    // still exists, so the UI would otherwise keep claiming "Connected"
+    // forever. Clear it so the user is prompted to reconnect (and re-grant
+    // the scope) instead of silently seeing an empty calendar.
+    const status = (err as { response?: { status?: number }; code?: number })?.response?.status
+      ?? (err as { code?: number })?.code;
+    const message = err instanceof Error ? err.message : String(err);
+    if (status === 401 || status === 403 || /insufficient.*scope/i.test(message)) {
+      await deleteGoogleTokens(supabase, userId).catch(() => {});
+    }
+
     return [];
   }
 }

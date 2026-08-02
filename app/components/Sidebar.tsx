@@ -2,24 +2,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ConversationSummary } from "@/lib/supabase/conversations";
-import { Modal } from "./Modal";
+import { ProfileModal } from "./ProfileModal";
 import type { Profile } from "./Navbar";
 import {
   ArrowUpRightIcon,
   CalendarIcon,
-  ChatBubbleIcon,
   ChevronRightIcon,
   ClockIcon,
   CloseIcon,
-  GoogleIcon,
   HamburgerIcon,
   LogoutIcon,
   PlusIcon,
-  SearchIcon,
   SettingsIcon,
   TrashIcon,
   UserIcon,
-  UsersIcon,
+  HeartIcon,
 } from "./icons";
 
 
@@ -27,7 +24,7 @@ const railIconButton =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[--color-text-secondary] transition-all duration-200 hover:bg-[--color-primary]/8 hover:text-[--color-text] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40";
 
 const STATIC_NAV_ITEMS = [
-  { label: "Recipients", icon: UsersIcon, href: "/recipients" },
+  { label: "Wishlist", icon: HeartIcon, href: "/wishlist" },
   { label: "My Gifts", icon: ClockIcon, href: "/my-gifts" },
 ];
 
@@ -94,7 +91,7 @@ export function Sidebar({
     signedIn &&
     profile &&
     menuOpen && (
-      <div className={`absolute z-50 w-48 rounded-2xl border border-[--color-border] bg-white/95 backdrop-blur-xl p-2 text-[--color-text] shadow-xl animate-scale-in ${positionClass}`}>
+      <div className={`absolute z-50 w-52 rounded-2xl bg-white p-1.5 text-[--color-text] shadow-[0_12px_32px_rgba(0,0,0,0.14)] ring-1 ring-black/[0.04] animate-scale-in ${positionClass}`}>
         <button
           type="button"
           onClick={openProfileModal}
@@ -103,8 +100,6 @@ export function Sidebar({
           <UserIcon className="h-4 w-4 text-[--color-text-secondary]" />
           Profile
         </button>
-
-        <div className="my-1.5 h-px bg-[--color-border]" />
 
         <button
           type="button"
@@ -120,70 +115,8 @@ export function Sidebar({
       </div>
     );
 
-  const profileModal = profile && (
-    <Modal
-      open={modalOpen}
-      onClose={() => setModalOpen(false)}
-      label="Profile"
-      width={560}
-      cardStyle={{ padding: "76px 26px 26px", background: "#F9FAFB" }}
-    >
-      {/* No maxHeight/overflow: the content is sized to fit, and PopupPeek
-          scales the whole stage down rather than introducing a scrollbar.
-          Dismiss by clicking the scrim or pressing Escape — no close button. */}
-      <div className="flex w-full flex-col gap-5">
-        <h2 className="text-2xl font-bold tracking-tight text-[--color-text]">Profile</h2>
-
-        {/* User Card */}
-        <section className="flex items-center gap-4 rounded-2xl bg-white p-5 border border-black/5 shadow-sm">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-2xl font-bold text-amber-900 shadow-sm">
-            {profile.initial}
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="truncate text-xl font-bold text-[--color-text]">{profile.name}</h1>
-          </div>
-        </section>
-
-        {/* Contact Details */}
-        <section className="flex flex-col gap-2.5">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text-tertiary] px-2">Contact Details</h3>
-          
-          <div className="flex flex-col rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4">
-              <div className="flex flex-col mb-3 sm:mb-0">
-                <span className="text-sm font-semibold text-[--color-text]">Email Address</span>
-                <span className="text-sm text-[--color-text-secondary] mt-1">{profile.email || "No email"}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Integrated Services */}
-        <section className="flex flex-col gap-2.5">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text-tertiary] px-2">Integrated Services</h3>
-
-          <div className="flex flex-col rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4">
-              <div className="flex items-center gap-4 mb-3 sm:mb-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[--color-surface]">
-                  <GoogleIcon className="h-5 w-5" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-semibold text-[--color-text]">Google Calendar</span>
-                  <span className="text-sm text-[--color-text-tertiary] mt-0.5">Sync upcoming gift occasions</span>
-                </div>
-              </div>
-              
-              <span className="rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 border border-emerald-100 flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                Connected
-              </span>
-            </div>
-          </div>
-        </section>
-
-      </div>
-    </Modal>
+  const profileModal = (
+    <ProfileModal open={modalOpen} onClose={() => setModalOpen(false)} profile={profile} />
   );
 
   if (!open) {
@@ -219,27 +152,16 @@ export function Sidebar({
           >
             <PlusIcon className="h-[18px] w-[18px]" />
           </button>
-          <button
-            type="button"
-            onClick={onToggle}
-            title="Search"
-            aria-label="Search"
-            className={railIconButton}
-          >
-            <SearchIcon className="h-[18px] w-[18px]" />
-          </button>
-          <button
-            type="button"
-            onClick={onToggle}
-            title="Chat History"
-            aria-label="Chat History"
-            className={railIconButton}
-          >
-            <ChatBubbleIcon className="h-[18px] w-[18px]" />
-          </button>
-          <Link href="/calendar" title="Calendar" aria-label="Calendar" className={railIconButton}>
+          {/* Mirrors the expanded nav exactly — same icons, same order. The
+              static items are mapped from one array so the two can't drift. */}
+          <Link href="/calendar" title="Upcoming Events" aria-label="Upcoming Events" className={railIconButton}>
             <CalendarIcon className="h-[18px] w-[18px]" />
           </Link>
+          {STATIC_NAV_ITEMS.map(({ label, icon: Icon, href }) => (
+            <Link key={label} href={href} title={label} aria-label={label} className={railIconButton}>
+              <Icon className="h-[18px] w-[18px]" />
+            </Link>
+          ))}
 
           <div className="flex-1" />
 
@@ -268,7 +190,12 @@ export function Sidebar({
       <aside className="glass-panel flex w-72 shrink-0 flex-col transition-[width] duration-300 ease-in-out">
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scrollbar-thin px-4 pb-5 pt-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+            {/* Wordmark doubles as the home link from any screen. */}
+            <Link
+              href="/"
+              aria-label="Memento — go to home"
+              className="flex items-center gap-2.5 rounded-xl px-1 py-0.5 transition-opacity duration-150 hover:opacity-70"
+            >
               <Image
                 src="/logo.png"
                 alt="Memento"
@@ -280,7 +207,7 @@ export function Sidebar({
               <span className="text-lg font-bold tracking-wide text-[--color-text]">
                 Memento
               </span>
-            </div>
+            </Link>
             <button
               type="button"
               onClick={onToggle}

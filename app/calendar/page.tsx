@@ -1,9 +1,9 @@
 import Link from "next/link";
+import Script from "next/script";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUpcomingOccasions, detectOccasion } from "@/lib/calendar";
 import { getGoogleTokens } from "@/lib/supabase/google-tokens";
-import { ArrowLeftIcon, CalendarIcon } from "@/app/components/icons";
 import { CalendarSidebarWrapper } from "./CalendarSidebarWrapper";
 import { listConversations } from "@/lib/supabase/conversations";
 import { getMonthYear, getNormalizedCategory, getLocalDayKey } from "./utils";
@@ -182,12 +182,20 @@ export default async function CalendarPage({
         )}
 
         {!tokenRow && !oauthError && (
-          <div className="m-8 glass-card flex flex-col items-center gap-4 rounded-3xl px-8 py-16 text-center animate-fade-up border border-black/5">
-            <CalendarIcon className="h-10 w-10 text-[--color-text-tertiary] mb-2" />
-            <h2 className="text-xl font-semibold">No calendar connected</h2>
-            <p className="max-w-sm text-sm text-[--color-text-secondary]">
-              Sign in with Google on the <Link href="/login" className="underline font-medium">login page</Link> to connect your calendar.
-            </p>
+          <div className="m-8 glass-card flex flex-col items-center gap-2 rounded-3xl px-8 py-12 text-center animate-fade-up border border-black/5">
+            <Script type="module" src="/mascot-banner/mascot-banner.js" strategy="afterInteractive" />
+            <mascot-banner
+              size={280}
+              assets="/mascot-banner/"
+              messages="No calendar connected yet|Your birthdays & events live here|Connect Google to bring them in"
+              suppressHydrationWarning
+            />
+            <Link
+              href="/login"
+              className="gradient-button press-scale mt-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              Connect Google Calendar
+            </Link>
           </div>
         )}
 

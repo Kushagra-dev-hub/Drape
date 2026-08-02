@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Script from "next/script";
 import { createClient } from "@/lib/supabase/client";
 import { Navbar, type Profile } from "../components/Navbar";
 import { Sidebar } from "../components/Sidebar";
@@ -197,118 +198,124 @@ export default function MyGiftsPage() {
             </p>
           </div>
 
-          {/* Filter chips */}
-          <div className="gift-rise mb-6 flex flex-wrap gap-2" style={{ animationDelay: "0.05s" }}>
-            {statuses.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setActiveStatus(s)}
-                className={`press-scale rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                  activeStatus === s
-                    ? "bg-[#1A6B5F] text-white shadow-[0_4px_14px_rgba(26,107,95,0.25)]"
-                    : "border border-black/[0.06] bg-white/70 text-[--color-text-secondary] hover:border-[#1A6B5F]/40 hover:text-[--color-text]"
-                }`}
+          {orders.length === 0 ? (
+            /* Delightful animated mascot empty state (kept from the merge). */
+            <div className="flex min-h-[52vh] flex-col items-center justify-center gap-2 text-center">
+              <Script type="module" src="/mascot-banner/mascot-banner.js" strategy="afterInteractive" />
+              <mascot-banner
+                size={420}
+                assets="/mascot-banner/"
+                messages="No gifts yet|Your gifts will show up here|Let's go find something special"
+                suppressHydrationWarning
+              />
+              <Link
+                href="/"
+                className="gradient-button btn-shine press-scale mt-2 rounded-full px-6 py-3 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg"
               >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          {/* Gifts grid / empty state */}
-          {filteredOrders.length === 0 ? (
-            <div className="gift-rise flex flex-col items-center justify-center gap-4 rounded-3xl border border-black/[0.06] bg-white/60 px-8 py-16 text-center shadow-[0_8px_30px_rgba(10,47,42,0.05)]">
-              <div className="text-6xl">🎁</div>
-              <h3 className="text-xl font-bold text-[--color-text]">
-                {orders.length === 0 ? "No gifts yet" : "Nothing in this filter"}
-              </h3>
-              <p className="max-w-sm text-sm text-[--color-text-secondary]">
-                {orders.length === 0
-                  ? "Every thoughtful gift you send will land here, ready to track from wrapped to delivered."
-                  : "Try a different status."}
-              </p>
-              {orders.length === 0 && (
-                <Link
-                  href="/"
-                  className="gradient-button btn-shine press-scale mt-1 rounded-full px-6 py-3 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg"
-                >
-                  Find the perfect gift
-                </Link>
-              )}
+                Find the perfect gift
+              </Link>
             </div>
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2">
-              {filteredOrders.map((order, i) => {
-                const m = metaFor(order.status);
-                const review = reviewFor(order);
-                const canReview = order.status === "Delivered" || order.status === "Processing";
-                return (
-                  <div
-                    key={order.id}
-                    className="cal-card gift-rise flex flex-col gap-4 rounded-3xl p-5"
-                    style={{ animationDelay: `${Math.min(i * 0.06, 0.4)}s` }}
+            <>
+              {/* Filter chips */}
+              <div className="gift-rise mb-6 flex flex-wrap gap-2" style={{ animationDelay: "0.05s" }}>
+                {statuses.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setActiveStatus(s)}
+                    className={`press-scale rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                      activeStatus === s
+                        ? "bg-[#1A6B5F] text-white shadow-[0_4px_14px_rgba(26,107,95,0.25)]"
+                        : "border border-black/[0.06] bg-white/70 text-[--color-text-secondary] hover:border-[#1A6B5F]/40 hover:text-[--color-text]"
+                    }`}
                   >
-                    <div className="flex gap-4">
-                      <div className="relative aspect-square w-24 shrink-0 overflow-hidden rounded-2xl bg-white shadow-[inset_0_0_0_1px_rgba(10,47,42,0.05)]">
-                        {order.gift_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={order.gift_image_url} alt={order.gift_name} className="h-full w-full object-cover mix-blend-multiply" />
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {filteredOrders.length === 0 ? (
+                <div className="gift-rise flex flex-col items-center justify-center gap-2 rounded-3xl border border-black/[0.06] bg-white/60 px-8 py-14 text-center shadow-[0_8px_30px_rgba(10,47,42,0.05)]">
+                  <div className="text-5xl">🎁</div>
+                  <h3 className="text-lg font-bold text-[--color-text]">Nothing in this filter</h3>
+                  <p className="text-sm text-[--color-text-secondary]">Try a different status.</p>
+                </div>
+              ) : (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {filteredOrders.map((order, i) => {
+                    const m = metaFor(order.status);
+                    const review = reviewFor(order);
+                    const canReview = order.status === "Delivered" || order.status === "Processing";
+                    return (
+                      <div
+                        key={order.id}
+                        className="cal-card gift-rise flex flex-col gap-4 rounded-3xl p-5"
+                        style={{ animationDelay: `${Math.min(i * 0.06, 0.4)}s` }}
+                      >
+                        <div className="flex gap-4">
+                          <div className="relative aspect-square w-24 shrink-0 overflow-hidden rounded-2xl bg-white shadow-[inset_0_0_0_1px_rgba(10,47,42,0.05)]">
+                            {order.gift_image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={order.gift_image_url} alt={order.gift_name} className="h-full w-full object-cover mix-blend-multiply" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-4xl">🎁</div>
+                            )}
+                          </div>
+
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <h3 className="line-clamp-2 text-base font-bold leading-snug text-[--color-text]">{order.gift_name}</h3>
+                            <p className="mt-0.5 text-xs font-medium text-[--color-text-tertiary]">{order.merchant}</p>
+                            <p className="mt-auto pt-2 text-lg font-bold text-[#1A6B5F]">₹{order.price.toLocaleString("en-IN")}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${m.chip}`}>
+                            <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
+                            {order.status}
+                          </span>
+                          <span className="text-xs font-medium text-[--color-text-tertiary]">
+                            {new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-[--color-text-secondary]">{m.copy}</p>
+
+                        {review ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-0.5">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <Star key={n} filled={n <= review.rating} size={16} />
+                              ))}
+                            </div>
+                            <span className="text-xs font-semibold text-[--color-text-tertiary]">Your review</span>
+                            <button
+                              onClick={() => openReview(order)}
+                              className="ml-auto text-xs font-semibold text-[#1A6B5F] hover:underline"
+                            >
+                              Edit
+                            </button>
+                          </div>
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-4xl">🎁</div>
+                          canReview && (
+                            <button
+                              onClick={() => openReview(order)}
+                              className="press-scale flex w-fit items-center gap-1.5 rounded-full bg-[#1A6B5F]/10 px-3.5 py-1.5 text-sm font-semibold text-[#1A6B5F] transition-colors hover:bg-[#1A6B5F]/16"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                              </svg>
+                              Rate &amp; Review
+                            </button>
+                          )
                         )}
                       </div>
-
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <h3 className="line-clamp-2 text-base font-bold leading-snug text-[--color-text]">{order.gift_name}</h3>
-                        <p className="mt-0.5 text-xs font-medium text-[--color-text-tertiary]">{order.merchant}</p>
-                        <p className="mt-auto pt-2 text-lg font-bold text-[#1A6B5F]">₹{order.price.toLocaleString("en-IN")}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${m.chip}`}>
-                        <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
-                        {order.status}
-                      </span>
-                      <span className="text-xs font-medium text-[--color-text-tertiary]">
-                        {new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-
-                    <p className="text-sm text-[--color-text-secondary]">{m.copy}</p>
-
-                    {review ? (
-                      <div className="flex items-center gap-2">
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <Star key={n} filled={n <= review.rating} size={16} />
-                          ))}
-                        </div>
-                        <span className="text-xs font-semibold text-[--color-text-tertiary]">Your review</span>
-                        <button
-                          onClick={() => openReview(order)}
-                          className="ml-auto text-xs font-semibold text-[#1A6B5F] hover:underline"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    ) : (
-                      canReview && (
-                        <button
-                          onClick={() => openReview(order)}
-                          className="press-scale flex w-fit items-center gap-1.5 rounded-full bg-[#1A6B5F]/10 px-3.5 py-1.5 text-sm font-semibold text-[#1A6B5F] transition-colors hover:bg-[#1A6B5F]/16"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                          </svg>
-                          Rate &amp; Review
-                        </button>
-                      )
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
@@ -319,10 +326,7 @@ export default function MyGiftsPage() {
           className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
           onClick={closeReview}
         >
-          <div
-            className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-start gap-3">
               <div className="aspect-square w-14 shrink-0 overflow-hidden rounded-xl bg-black/5">
                 {reviewing.gift_image_url ? (

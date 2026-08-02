@@ -15,6 +15,7 @@ import {
   updateMessageLetter,
   type ConversationSummary,
 } from "@/lib/supabase/conversations";
+import { listWishlistGiftIds } from "@/lib/supabase/wishlist";
 import { GiftCard } from "./components/GiftCard";
 import { LetterCard } from "./components/LetterCard";
 import { SendIcon, SparkleIcon, MicIcon } from "./components/icons";
@@ -69,6 +70,7 @@ function HomeContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -123,6 +125,15 @@ function HomeContent() {
           if (active) setConversations(list);
         } catch (err) {
           console.error("Failed to load conversations", err);
+        }
+
+        // So a gift already on the wishlist renders with a filled heart here
+        // instead of looking unsaved.
+        try {
+          const ids = await listWishlistGiftIds(supabase);
+          if (active) setWishlistedIds(new Set(ids));
+        } catch (err) {
+          console.error("Failed to load wishlist", err);
         }
 
         if (active && importedId) {
@@ -358,11 +369,27 @@ function HomeContent() {
   // have somewhere to attach to, regardless of arrival order.
   const talkAssistantIdRef = useRef<string | null>(null);
   const talkConversationIdRef = useRef<string | null>(null);
+  // Last gifts/letter shown in the voice overlay. Deliberately NOT derived from
+  // "the current turn's message" — a fresh (empty) assistant message is created
+  // at the start of every turn, so that lookup would blank the cards the moment
+  // the next turn starts. These persist across turns and only change when a new
+  // gifts/letter event actually arrives, so results stay on screen once shown.
+  const [talkGifts, setTalkGifts] = useState<GiftCandidate[] | null>(null);
+  const [talkLetter, setTalkLetter] = useState<string | null>(null);
+  // Unlike gifts/letter, a clarifying question is a one-shot prompt — once
+  // the user answers (by tapping a chip or just speaking through it), it's
+  // stale, so this clears on the next turn rather than persisting.
+  const [talkOptions, setTalkOptions] = useState<ChipOptions | null>(null);
+  // Which message talkGifts came from — approving a gift needs the message
+  // it actually lives on, which may not be the currently-active turn once
+  // gifts are carried forward across turns.
+  const talkGiftsMessageIdRef = useRef<string | null>(null);
 
   async function handleTalkUserTranscript(text: string) {
     const userMessage: Message = { id: nextId(), role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
     setStages([]);
+    setTalkOptions(null);
 
     let activeConversationId = conversationId;
     if (userId) {
@@ -394,6 +421,17 @@ function HomeContent() {
     const assistantId = talkAssistantIdRef.current;
     if (!assistantId) return;
     applyEvent(event as StreamEvent, assistantId, talkConversationIdRef.current);
+    if (event.type === "gifts") {
+      setTalkGifts(event.items);
+      talkGiftsMessageIdRef.current = assistantId;
+    }
+    if (event.type === "letter") setTalkLetter(event.content);
+    if (event.type === "options") setTalkOptions({ prompt: event.prompt, options: event.options });
+  }
+
+  function handleTalkSelectOption(value: string) {
+    setTalkOptions(null);
+    talkMode.sendTextInput(value);
   }
 
   function handleTalkTurnComplete(fullText: string) {
@@ -420,6 +458,9 @@ function HomeContent() {
   });
 
   function handleStartTalkMode() {
+    setTalkGifts(null);
+    setTalkLetter(null);
+    setTalkOptions(null);
     talkMode.startVoice(messages.map(({ role, content }) => ({ role, content })));
   }
 
@@ -627,6 +668,15 @@ function HomeContent() {
                               key={g.id}
                               gift={g}
                               onApprove={(giftId) => handleApproveGift(m.id, giftId)}
+                              initiallyWishlisted={wishlistedIds.has(g.id)}
+                              onWishlistChange={(giftId, wishlisted) =>
+                                setWishlistedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (wishlisted) next.add(giftId);
+                                  else next.delete(giftId);
+                                  return next;
+                                })
+                              }
                               onSelectVariant={handleVariantCheckout}
                             />
                           ))}
@@ -707,12 +757,22 @@ function HomeContent() {
         <TalkModeOverlay
           connectionState={talkMode.connectionState}
           isMuted={talkMode.isMuted}
-          isAgentSpeaking={talkMode.isAgentSpeaking}
           isProcessing={talkMode.isProcessing}
           interimCaption={talkMode.interimCaption}
-          agentCaption={talkMode.agentCaption}
+          gifts={talkGifts}
+          letter={talkLetter}
+          options={talkOptions}
+          getPlaybackLevel={talkMode.getPlaybackLevel}
+          isPlaybackActive={talkMode.isPlaybackActive}
+          getCurrentSentenceText={talkMode.getCurrentSentenceText}
           onToggleMute={talkMode.toggleMute}
           onEndCall={talkMode.stopVoice}
+          onSelectOption={handleTalkSelectOption}
+          onApproveGift={(giftId) => {
+            const id = talkGiftsMessageIdRef.current;
+            if (id) handleApproveGift(id, giftId);
+          }}
+          onSelectVariant={handleVariantCheckout}
         />
       )}
     </div>

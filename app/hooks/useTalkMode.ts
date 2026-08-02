@@ -27,10 +27,8 @@ export function useTalkMode(options: UseTalkModeOptions) {
 
   const [connectionState, setConnectionState] = useState<TalkConnectionState>("idle");
   const [isMuted, setIsMuted] = useState(false);
-  const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [interimCaption, setInterimCaption] = useState("");
-  const [agentCaption, setAgentCaption] = useState("");
 
   const socketRef = useRef<Socket | null>(null);
   const captureRef = useRef<ReturnType<typeof createAudioCapture> | null>(null);
@@ -55,8 +53,6 @@ export function useTalkMode(options: UseTalkModeOptions) {
 
     socket.on("voice:user-transcript", ({ text }: { text: string }) => {
       setInterimCaption("");
-      setAgentCaption("");
-      setIsAgentSpeaking(false);
       setIsProcessing(true);
       optionsRef.current.onUserTranscript(text);
     });
@@ -78,12 +74,17 @@ export function useTalkMode(options: UseTalkModeOptions) {
     });
 
     socket.on("voice:ai-transcript", ({ text }: { text: string }) => {
-      // Replace, not accumulate: mascot-voice's `text` prop is "the line
-      // currently being spoken" — appending would reset its utterance
-      // timeline (and the lipsync/caption reveal riding on it) every sentence.
+      // Stamp a boundary in the playback engine's real timeline rather than
+      // setting caption state directly — this event fires as soon as the
+      // server STARTS synthesizing this sentence, well before its audio
+      // actually starts playing (TTS synthesis+download is usually faster
+      // than real-time playback), so text driven straight off this event
+      // visibly runs ahead of what's audible. markSentenceBoundary instead
+      // records where in the gapless audio queue this sentence's audio will
+      // actually begin, so getCurrentSentenceText() can report the sentence
+      // that's really sounding at any given moment.
       setIsProcessing(false);
-      setIsAgentSpeaking(true);
-      setAgentCaption(text);
+      playbackRef.current?.markSentenceBoundary(text);
     });
 
     socket.on("voice:audio", ({ data }: { data: string }) => {
@@ -91,17 +92,13 @@ export function useTalkMode(options: UseTalkModeOptions) {
     });
 
     socket.on("voice:turn-complete", ({ text }: { text: string }) => {
-      setIsAgentSpeaking(false);
       setIsProcessing(false);
-      setAgentCaption("");
       optionsRef.current.onTurnComplete(text);
     });
 
     socket.on("voice:interrupted", () => {
       playbackRef.current?.stopAll();
-      setIsAgentSpeaking(false);
       setIsProcessing(false);
-      setAgentCaption("");
       optionsRef.current.onInterrupted();
     });
 
@@ -153,11 +150,21 @@ export function useTalkMode(options: UseTalkModeOptions) {
     cleanupAudio();
     socketRef.current?.emit("voice:stop");
     setConnectionState("idle");
-    setIsAgentSpeaking(false);
     setIsProcessing(false);
-    setAgentCaption("");
     setInterimCaption("");
   }, [cleanupAudio]);
+
+  const getPlaybackLevel = useCallback(() => playbackRef.current?.getLevel() ?? 0, []);
+  const isPlaybackActive = useCallback(() => playbackRef.current?.isPlaying() ?? false, []);
+  const getCurrentSentenceText = useCallback(() => playbackRef.current?.getCurrentSentenceText() ?? "", []);
+
+  // Answer a clarifying question by tapping an option instead of speaking it —
+  // goes through the exact same turn path server-side as a spoken answer.
+  const sendTextInput = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    socketRef.current?.emit("voice:text-input", { text: trimmed });
+  }, []);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -179,12 +186,14 @@ export function useTalkMode(options: UseTalkModeOptions) {
     connectionState,
     isVoiceActive: connectionState === "connecting" || connectionState === "connected",
     isMuted,
-    isAgentSpeaking,
     isProcessing,
     interimCaption,
-    agentCaption,
+    getPlaybackLevel,
+    isPlaybackActive,
+    getCurrentSentenceText,
     startVoice,
     stopVoice,
     toggleMute,
+    sendTextInput,
   };
 }
