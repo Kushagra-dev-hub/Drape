@@ -20,6 +20,7 @@ export type LiveVariant = {
 export type LiveProduct = {
   id: string;
   title: string;
+  description?: { html?: string };
   price_range: { min: { amount: number; currency: string } };
   variants: LiveVariant[];
 };
