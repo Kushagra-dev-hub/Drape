@@ -262,6 +262,31 @@ export function PartyPopperIcon({ className = base }: IconProps) {
   );
 }
 
+export function MicIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="7" y="2.5" width="6" height="9.5" rx="3" />
+      <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0" />
+      <line x1="10" y1="15" x2="10" y2="17.5" />
+      <line x1="6.8" y1="17.5" x2="13.2" y2="17.5" />
+    </svg>
+  );
+}
+
+export function MicOffIcon({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M7 3.6A3 3 0 0 1 13 5v4.5c0 .4-.05.78-.14 1.14" />
+      <path d="M7 7v2.5a3 3 0 0 0 4.4 2.65" />
+      <path d="M4.5 9.5a5.5 5.5 0 0 0 8.4 4.68" />
+      <path d="M15.5 9.5a5.48 5.48 0 0 1-.66 2.6" />
+      <line x1="10" y1="15" x2="10" y2="17.5" />
+      <line x1="6.8" y1="17.5" x2="13.2" y2="17.5" />
+      <line x1="2.5" y1="2.5" x2="17.5" y2="17.5" />
+    </svg>
+  );
+}
+
 export function StarIcon({ className = base }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>

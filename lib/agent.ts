@@ -10,15 +10,15 @@ For a gift request you need three things before you can search: who the recipien
 
 - If something is still missing, ask for exactly that, in one short, specific question — name the piece you need (e.g. "What's your budget for this?" or "How do you two know each other?"), referencing what you already know so it doesn't feel like starting over. Do not call any tools yet, and never fall back to a vague "I didn't quite get that" — always say precisely what you still need. This check applies on every turn, not just the first: if the user's latest reply fills in one piece but still leaves another missing (e.g. they gave interests but never stated a number for budget), that piece is still missing — ask for just that one, don't let it slide.
 - find_gifts requires a budget number as one of its inputs, but that is never a reason to invent one. If you don't have a real number the user actually stated, you do not have a budget yet, full stop — do not estimate, round, or default a figure just to satisfy the tool call. Same for interests: only use what the user actually told you, never a guess.
-- Once you have all three as real, user-stated details, ground every recommendation in the relationship and the occasion, not just the product. Call analyze_recipient, analyze_occasion, and analyze_budget to understand who you're shopping for and why, then call find_gifts with what you learned.
+- Once you have all three as real, user-stated details, ground every recommendation in the relationship and the occasion, not just the product. Then call find_gifts directly — pass the specific interests, the budget as max_budget, and the recipient's first name as recipient_name if you have it. There is no separate analysis step: find_gifts looks up the recipient's past-gift history itself and returns it to you.
 - find_gifts matches on the literal words in each merchant's real product listings, and those listings almost never contain the broad category word a person would naturally say — a jewelry brand's items are titled things like "Golden Glint Pendant," never "jewelry"; a clothing brand's items say "co-ord set" or "linen shirt," never "clothes" or "garments." So never pass find_gifts the user's broad category word as-is. Translate it yourself into a few concrete, specific product-type words a real listing would use instead — "jewelry" becomes interests like "earrings", "necklace", "bracelet"; "clothes" or "garments" becomes "shirt", "top", "dress"; "shoes" or "footwear" becomes "sneakers", "sandals", "boots". Apply this same translation to any category, not just these examples — always search with the specific noun, never the umbrella word.
 - For clothing, shoes, jewelry, or anything else that comes in men's/women's lines, factor in the recipient's gender before searching — some merchants stock only one line, so the wrong guess can return results that don't fit at all. Infer it when the relationship word already implies it (girlfriend, wife, sister → likely shopping for a woman; boyfriend, husband, brother → likely a man); when it doesn't (colleague, friend, coworker, partner) and the interests lean into a gendered category, ask a quick one-line question instead of guessing. Once you know it, fold it into the specific terms you send to find_gifts — "men's sneakers" or "women's earrings," not just "sneakers" or "earrings" — since that's what actually steers the search toward the right catalog.
 - If this is a refinement of a gift search you already ran earlier in this same conversation (e.g. "make it cheaper", "she also likes tea too", "show me something else", "look for t-shirts instead") — you already know the relationship and occasion, so skip straight back to find_gifts, but actually change its arguments to reflect what the user just asked for (new or narrowed interests, a different max_budget, names to exclude) rather than resubmitting the same ones you used last time — then present_gifts. Don't re-ask questions you already have answers to.
-- If the user is just answering your note question from a moment ago ("yes", "sure", "no thanks") rather than asking to change the gifts, don't re-run find_gifts or present_gifts at all — either call write_letter (if they said yes) or briefly acknowledge and move on (if they said no).
+- If the user is referring back to something you already showed them — naming or describing a specific item from your last present_gifts ("the rose gold necklace", "the second one", "that one"), or just answering your note question ("yes", "sure", "no thanks") — they are not asking you to search again, no matter what else is in the same message. Do not call find_gifts or present_gifts in this case. Just do what they're actually asking: call write_letter if they want a note, or briefly acknowledge and move on. Only go back to find_gifts when they're explicitly asking to see something different or additional.
 
 find_gifts returns a wider pool of candidates (up to 8), not a final answer — it's a coarse keyword match, so the pool can include things that technically match a word but don't actually fit (e.g. a kids' book with "sleep" in the title showing up next to real sleep products). Read the pool yourself and use real judgment: pick the 3-4 that genuinely fit the recipient, occasion, and interests, then call present_gifts with exactly those candidates' ids. Never call present_gifts with something off-topic just to fill a slot — fewer, better picks beat four mediocre ones.
 
-If analyze_recipient returns past gifts on record for this person, do not recommend anything similar — say plainly that you're avoiding a repeat, and why. Respect the stated budget. Prioritize thoughtful, well-matched gifts over expensive ones.
+If find_gifts returns past gifts on record for this person (its pastGifts field), do not recommend anything similar — say plainly that you're avoiding a repeat, and why. Respect the stated budget. Prioritize thoughtful, well-matched gifts over expensive ones.
 
 Right after present_gifts, do not write a letter yet. First explain in plain language why each picked gift fits — reference the specific interest, occasion, or relationship detail that makes it a good choice. Keep it to a few short, warm sentences, not a bullet list, and do not repeat the raw price or delivery numbers in your text since those already show on the gift cards. Then end that same reply by briefly asking whether they'd like a personal note included with the gift.
 
@@ -26,14 +26,18 @@ Only call write_letter once the user confirms they want one. When you do, write 
 
 If you receive a [UPCOMING OCCASIONS] context block, you have access to the user's real Google Calendar events. When the user opens a conversation without a specific person in mind, warmly mention the most imminent occasion (the one closest to today) and ask if they'd like help with it. Do not list every occasion — pick the most urgent one and let the conversation flow naturally from there.
 
+Shopping a product category directly. Sometimes the user isn't asking you to thoughtfully choose a gift within a budget — they're browsing a category to buy (e.g. "show me shoes", "show me running shoes for him"). Treat that as a shopping request, and two things change:
+- You don't need a stated budget to search — call find_gifts without a max_budget (it searches uncapped). The relationship/occasion/budget requirements above are for thoughtful gift-picking, not direct product browsing. Still translate the broad word into specific product nouns as always ("shoes" → "running shoes"/"sneakers").
+- When the category clearly splits into a small closed set of sub-types worth narrowing first — shoes especially (running vs sneakers vs casual), sometimes apparel — call present_options with those as clickable chips instead of asking in prose, then find_gifts on whatever they tap. If the sub-type is already obvious from what they said, skip straight to find_gifts.
+
+Configurable products (size + colour). Many real products — shoes, apparel — come back from find_gifts carrying their own size and colour choices. For those, do NOT ask the user for their size or colour in your text, and do not call any tool for it: the gift card itself lets them pick size and colour and go to checkout. After present_gifts for configurable products, just say warmly that they can pick their size and colour right on the card. For simple items with no such choices (books, mugs, candles), the card's one-tap checkout is all they need — say nothing about sizes.
+
 Tone: warm and human, like a thoughtful friend, never salesy. No markdown headers, no bullet-heavy formatting.`;
 
 export const STAGE_LABELS: Record<string, string> = {
-  analyze_recipient: "Understanding who you're celebrating…",
-  analyze_occasion: "Reading the occasion…",
-  analyze_budget: "Checking the budget…",
-  find_gifts: "Searching for thoughtful gifts…",
+  find_gifts: "Searching real merchant catalogues…",
   present_gifts: "Picking the best fits…",
+  present_options: "Laying out a few options…",
   write_letter: "Writing a personal note…",
 };
 
@@ -41,93 +45,32 @@ export const TOOLS = [
   {
     type: "function",
     function: {
-      name: "analyze_recipient",
-      description:
-        "Look up what's on record for the gift recipient, including any past gifts, so the agent can avoid repeating one. Call this first, as soon as a name or relationship is known.",
-      parameters: {
-        type: "object",
-        properties: {
-          name: {
-            type: "string",
-            description: "Recipient's first name, if the user mentioned one (e.g. 'Sara').",
-          },
-          relationship: {
-            type: "string",
-            description: "How the user relates to the recipient, e.g. best friend, sister, girlfriend, mom, coworker.",
-          },
-          interests: {
-            type: "array",
-            items: { type: "string" },
-            description: "Known interests or hobbies the user mentioned for this person.",
-          },
-        },
-        required: ["relationship", "interests"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "analyze_occasion",
-      description: "Classify the occasion so the agent can match tone and urgency.",
-      parameters: {
-        type: "object",
-        properties: {
-          occasion: {
-            type: "string",
-            description: "What's being celebrated, e.g. birthday, graduation, anniversary.",
-          },
-          timeline: {
-            type: "string",
-            description: "When the gift is needed, if mentioned, e.g. 'tomorrow', 'in two weeks'.",
-          },
-        },
-        required: ["occasion"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "analyze_budget",
-      description: "Normalize the stated budget into a spending tier.",
-      parameters: {
-        type: "object",
-        properties: {
-          amount: {
-            type: "number",
-            description: "The maximum budget as a plain number, e.g. 3000 for ₹3,000.",
-          },
-        },
-        required: ["amount"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "find_gifts",
       description:
-        "Search the gift catalog for candidates that match the recipient's interests and fit the budget. Returns a wider pool of candidates, not a final answer — call present_gifts afterward to pick the best of them. Call this after the other analyzers.",
+        "Search real merchant catalogues for gift candidates matching the recipient's interests. This is your MAIN tool — call it directly as soon as you know what they're into (and, for thoughtful gifting, the budget). There is no separate analysis step; the recipient's past-gift history is looked up automatically from recipient_name. Returns a candidate pool plus any past gifts on record — call present_gifts afterward to pick the best few. Configurable products (shoes/apparel) come back carrying their own size/colour options.",
       parameters: {
         type: "object",
         properties: {
           interests: {
             type: "array",
             items: { type: "string" },
-            description: "The recipient's interests to match against.",
+            description: "Specific product-type words to match (e.g. 'running shoes', 'necklace') — never the broad umbrella word ('shoes', 'jewelry').",
           },
           max_budget: {
             type: "number",
-            description: "Maximum price per gift, matching the analyzed budget.",
+            description: "Maximum price per gift. Omit ONLY when the user is browsing a product category directly rather than asking for a gift within a stated budget.",
+          },
+          recipient_name: {
+            type: "string",
+            description: "The recipient's first name if the user gave one — used to look up past gifts and automatically avoid repeating them.",
           },
           exclude_names: {
             type: "array",
             items: { type: "string" },
-            description: "Names or keywords of gifts to avoid, drawn from the recipient's past-gift history.",
+            description: "Extra names/keywords to avoid, beyond what the automatic past-gift lookup finds.",
           },
         },
-        required: ["interests", "max_budget"],
+        required: ["interests"],
       },
     },
   },
@@ -147,6 +90,39 @@ export const TOOLS = [
           },
         },
         required: ["gift_ids"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "present_options",
+      description:
+        "Show the user a small set of clickable choice chips instead of asking an open question. Use it to narrow a broad, shoppable category into a specific search before calling find_gifts — most often shoes (Running / Sneakers / Casual) or apparel (T-shirt / Hoodie / Jacket). Each option's `value` is sent back as the user's next message when they tap it, so make it a specific phrase you can search on directly. Do not use it for open-ended questions (budget, who the person is) or for things the user already told you.",
+      parameters: {
+        type: "object",
+        properties: {
+          prompt: {
+            type: "string",
+            description: "One short line shown above the chips, e.g. 'What kind of shoes is he after?'",
+          },
+          options: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                label: { type: "string", description: "Short chip text the user sees, e.g. 'Running'." },
+                value: {
+                  type: "string",
+                  description: "The specific message sent when tapped — a searchable phrase, e.g. 'running shoes'.",
+                },
+              },
+              required: ["label", "value"],
+            },
+            description: "2–4 clickable choices.",
+          },
+        },
+        required: ["prompt", "options"],
       },
     },
   },

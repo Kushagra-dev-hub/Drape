@@ -1,6 +1,21 @@
 import { searchCatalog, type LiveProduct } from "./ucp";
 import { MERCHANTS, type Merchant } from "./merchants";
 
+/** One purchasable colour+size combination of a product, straight from the merchant. */
+export type GiftVariant = {
+  id: string;
+  title: string; // e.g. "COSMIC TEAL / UK-09"
+  price: number; // whole ₹
+  color?: string;
+  size?: string;
+  available: boolean;
+  imageUrl?: string;
+  checkoutUrl?: string;
+};
+
+/** A product-level option group the buyer chooses from, e.g. { name: "Size", values: ["UK-06", …] }. */
+export type GiftOption = { name: string; values: string[] };
+
 export type GiftCandidate = {
   id: string;
   name: string;
@@ -12,7 +27,33 @@ export type GiftCandidate = {
   emoji: string;
   imageUrl?: string;
   checkoutUrl?: string;
+  // Present only for configurable products (shoes, apparel): the buyer picks a
+  // size + colour, which resolves to one `variant` before checkout. Absent for
+  // simple items (books, mugs) so those keep the one-tap approve flow.
+  options?: GiftOption[];
+  variants?: GiftVariant[];
 };
+
+/**
+ * Compact projection sent to the LLM for find_gifts — ids, names, prices, and a
+ * one-line size/colour summary, but NOT the full per-variant array (which would
+ * burn tokens the model doesn't need to present cards). The full variant data
+ * goes to the client via the `gifts` SSE event instead.
+ */
+export function giftsForModel(items: GiftCandidate[]) {
+  return items.map((g) => {
+    const sizes = g.options?.find((o) => /size/i.test(o.name))?.values;
+    const colors = g.options?.find((o) => /colou?r/i.test(o.name))?.values;
+    return {
+      id: g.id,
+      name: g.name,
+      price: g.price,
+      merchant: g.merchant,
+      ...(sizes?.length ? { sizes: sizes.join(", ") } : {}),
+      ...(colors?.length ? { colors: colors.join(", ") } : {}),
+    };
+  });
+}
 
 // Real catalog search doesn't return shipping estimates — this is a known
 // approximation for live results, named so it's greppable rather than magic.
@@ -50,51 +91,11 @@ const RECIPIENT_MEMORY: Record<string, { item: string; occasion: string; year: n
 
 export async function runTool(name: string, args: Record<string, unknown>) {
   switch (name) {
-    case "analyze_recipient":
-      return analyzeRecipient(args);
-    case "analyze_occasion":
-      return analyzeOccasion(args);
-    case "analyze_budget":
-      return analyzeBudget(args);
     case "find_gifts":
       return await findGifts(args);
     default:
       return { error: `Unknown tool: ${name}` };
   }
-}
-
-function analyzeRecipient(args: Record<string, unknown>) {
-  const name = typeof args.name === "string" ? args.name.trim().toLowerCase() : "";
-  const pastGifts = RECIPIENT_MEMORY[name] ?? [];
-  return {
-    relationship: typeof args.relationship === "string" ? args.relationship : null,
-    interests: Array.isArray(args.interests) ? args.interests : [],
-    pastGifts,
-  };
-}
-
-function analyzeOccasion(args: Record<string, unknown>) {
-  const occasion = typeof args.occasion === "string" ? args.occasion : "";
-  const lower = occasion.toLowerCase();
-  let tone = "everyday";
-  if (/birthday|graduation|promotion|got into|admitted|engagement|wedding/.test(lower)) {
-    tone = "milestone";
-  } else if (/sorry|sympathy|condolence|get well/.test(lower)) {
-    tone = "supportive";
-  } else if (/anniversary|valentine|date night/.test(lower)) {
-    tone = "romantic";
-  }
-  return {
-    occasion,
-    timeline: typeof args.timeline === "string" ? args.timeline : null,
-    tone,
-  };
-}
-
-function analyzeBudget(args: Record<string, unknown>) {
-  const amount = typeof args.amount === "number" ? args.amount : Number(args.amount) || 0;
-  const tier = amount < 1200 ? "modest" : amount < 3000 ? "comfortable" : "generous";
-  return { amount, currency: "INR", tier };
 }
 
 type ScoredGift = { gift: GiftCandidate; score: number };
@@ -165,6 +166,31 @@ function mapLiveProductToGift(
   const titleLower = product.title.toLowerCase();
   if (excludeNames.some((ex) => ex && titleLower.includes(ex))) return null;
 
+  // Surface size/colour options only for genuinely configurable products
+  // (a Size or Colour group with more than one value). Books/mugs come back
+  // with just a default "Title" option — those stay simple one-tap gifts.
+  const options: GiftOption[] = (product.options ?? [])
+    .filter((o) => o.values.length > 1 && /size|colou?r/i.test(o.name))
+    .map((o) => ({ name: o.name, values: o.values.map((v) => v.label) }));
+
+  let variants: GiftVariant[] | undefined;
+  if (options.length > 0) {
+    variants = product.variants.map((v) => {
+      const color = v.options?.find((o) => /colou?r/i.test(o.name))?.label;
+      const size = v.options?.find((o) => /size/i.test(o.name))?.label;
+      return {
+        id: v.id,
+        title: v.title || [color, size].filter(Boolean).join(" / "),
+        price: Math.round(v.price.amount / 100),
+        color,
+        size,
+        available: v.availability?.available !== false,
+        imageUrl: v.media?.[0]?.url,
+        checkoutUrl: v.checkout_url,
+      };
+    });
+  }
+
   return {
     id: product.id,
     name: product.title,
@@ -176,6 +202,8 @@ function mapLiveProductToGift(
     emoji: "🎁",
     imageUrl: cheapest.media?.[0]?.url,
     checkoutUrl: cheapest.checkout_url,
+    ...(options.length > 0 ? { options } : {}),
+    ...(variants ? { variants } : {}),
   };
 }
 
@@ -222,9 +250,17 @@ async function findGifts(args: Record<string, unknown>) {
     : [];
   const maxBudget =
     typeof args.max_budget === "number" ? args.max_budget : Number(args.max_budget) || Infinity;
-  const excludeNames = Array.isArray(args.exclude_names)
+  const explicitExcludes = Array.isArray(args.exclude_names)
     ? (args.exclude_names as string[]).map((n) => String(n).toLowerCase())
     : [];
+
+  // Recipient past-gift lookup (folded in from the removed analyze_recipient) —
+  // avoids repeats automatically and hands the history back to the agent so it
+  // can say it's skipping a repeat, all without a separate LLM round-trip.
+  const recipientName =
+    typeof args.recipient_name === "string" ? args.recipient_name.trim().toLowerCase() : "";
+  const pastGifts = RECIPIENT_MEMORY[recipientName] ?? [];
+  const excludeNames = [...explicitExcludes, ...pastGifts.map((g) => g.item.toLowerCase())];
 
   const mockScored = scoreMockCatalog(interests, maxBudget, excludeNames);
   const liveScored = await scoreLiveMerchants(interests, maxBudget, excludeNames);
@@ -242,5 +278,5 @@ async function findGifts(args: Record<string, unknown>) {
     .slice(0, CANDIDATE_POOL_SIZE)
     .map((s) => s.gift);
 
-  return { items };
+  return { items, pastGifts };
 }

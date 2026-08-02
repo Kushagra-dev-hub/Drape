@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import type { GiftCandidate } from "@/lib/gifts";
+import type { GiftCandidate, GiftVariant } from "@/lib/gifts";
 import { createClient } from "@/lib/supabase/client";
 import {
   createConversation,
@@ -18,10 +18,13 @@ import {
 import { listWishlistGiftIds } from "@/lib/supabase/wishlist";
 import { GiftCard } from "./components/GiftCard";
 import { LetterCard } from "./components/LetterCard";
-import { SendIcon, SparkleIcon } from "./components/icons";
+import { SendIcon, SparkleIcon, MicIcon } from "./components/icons";
 import { Navbar, type Profile } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { ThinkingStages, type Stage } from "./components/ThinkingStages";
+import { TalkModeOverlay } from "./components/TalkModeOverlay";
+import { useTalkMode } from "./hooks/useTalkMode";
+import type { AgentTurnEvent } from "@/lib/agent-runtime";
 
 const QUICK_STARTS = [
   { emoji: "🎂", label: "Birthday", prefill: "It's a birthday coming up for " },
@@ -34,12 +37,15 @@ const HERO_EXIT_MS = 300;
 const STORAGE_KEY = "memento-chat";
 
 type Role = "user" | "assistant";
+type ChipChoice = { label: string; value: string };
+type ChipOptions = { prompt: string; options: ChipChoice[] };
 type Message = {
   id: string;
   role: Role;
   content: string;
   gifts?: GiftCandidate[];
   letter?: string;
+  options?: ChipOptions;
 };
 
 const nextId = () => crypto.randomUUID();
@@ -54,6 +60,7 @@ type StreamEvent =
   | { type: "stage"; tool: string; label: string; status: "active" | "done" }
   | { type: "message"; content: string }
   | { type: "gifts"; items: GiftCandidate[] }
+  | { type: "options"; prompt: string; options: ChipChoice[] }
   | { type: "letter"; content: string }
   | { type: "done" }
   | { type: "error"; message: string };
@@ -249,6 +256,34 @@ function HomeContent() {
     router.push(`/checkout?messageId=${messageId}&giftId=${giftId}`);
   }
 
+  // A configurable product (shoe/apparel) resolved to one exact size+colour
+  // variant. Stash the chosen variant and hand off to Prava checkout — the
+  // price, image, and name all come from the real merchant variant.
+  function handleVariantCheckout(gift: GiftCandidate, variant: GiftVariant) {
+    if (!userId) {
+      router.push("/login");
+      return;
+    }
+    const selection = {
+      giftId: gift.id,
+      name: gift.name,
+      merchant: gift.merchant,
+      deliveryDays: gift.deliveryDays,
+      price: variant.price,
+      imageUrl: variant.imageUrl || gift.imageUrl || null,
+      size: variant.size ?? null,
+      color: variant.color ?? null,
+      variantId: variant.id,
+      variantTitle: variant.title,
+    };
+    try {
+      sessionStorage.setItem("drape-checkout-selection", JSON.stringify(selection));
+    } catch {
+      // ignore — checkout also degrades if storage is unavailable
+    }
+    router.push("/checkout?variant=1");
+  }
+
   function applyEvent(event: StreamEvent, assistantId: string, activeConversationId: string | null) {
     switch (event.type) {
       case "stage": {
@@ -290,6 +325,16 @@ function HomeContent() {
         }
         break;
       }
+      case "options": {
+        // Transient clarifier chips — attach to the message in memory (not
+        // persisted; they're a one-shot prompt, replaced once the user taps one).
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, options: { prompt: event.prompt, options: event.options } } : m
+          )
+        );
+        break;
+      }
       case "letter": {
         setMessages((prev) =>
           prev.map((m) => (m.id === assistantId ? { ...m, letter: event.content } : m))
@@ -315,6 +360,78 @@ function HomeContent() {
         break;
       }
     }
+  }
+
+  // Talk mode: gifts/options/letter arrive as separate socket events that can
+  // land before the spoken reply finishes, so — unlike text chat, where the
+  // assistant bubble is created by the "message" event — an empty assistant
+  // bubble is created immediately here so applyEvent's map-based cases always
+  // have somewhere to attach to, regardless of arrival order.
+  const talkAssistantIdRef = useRef<string | null>(null);
+  const talkConversationIdRef = useRef<string | null>(null);
+
+  async function handleTalkUserTranscript(text: string) {
+    const userMessage: Message = { id: nextId(), role: "user", content: text };
+    setMessages((prev) => [...prev, userMessage]);
+    setStages([]);
+
+    let activeConversationId = conversationId;
+    if (userId) {
+      try {
+        if (!activeConversationId) {
+          const created = await createConversation(supabase, userId, text);
+          activeConversationId = created.id;
+          setConversationId(created.id);
+          setConversations((prev) => [created, ...prev]);
+        }
+        await insertMessage(supabase, {
+          id: userMessage.id,
+          conversationId: activeConversationId,
+          role: "user",
+          content: text,
+        });
+      } catch (err) {
+        console.warn("Failed to persist voice message", err);
+      }
+    }
+
+    const assistantId = nextId();
+    talkAssistantIdRef.current = assistantId;
+    talkConversationIdRef.current = activeConversationId;
+    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+  }
+
+  function handleTalkAgentEvent(event: AgentTurnEvent) {
+    const assistantId = talkAssistantIdRef.current;
+    if (!assistantId) return;
+    applyEvent(event as StreamEvent, assistantId, talkConversationIdRef.current);
+  }
+
+  function handleTalkTurnComplete(fullText: string) {
+    const assistantId = talkAssistantIdRef.current;
+    const activeConversationId = talkConversationIdRef.current;
+    if (!assistantId) return;
+    setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: fullText } : m)));
+    if (userId && activeConversationId) {
+      insertMessage(supabase, {
+        id: assistantId,
+        conversationId: activeConversationId,
+        role: "assistant",
+        content: fullText,
+      }).catch((err) => console.warn("Failed to persist voice assistant message", err));
+    }
+  }
+
+  const talkMode = useTalkMode({
+    onUserTranscript: handleTalkUserTranscript,
+    onAgentEvent: handleTalkAgentEvent,
+    onTurnComplete: handleTalkTurnComplete,
+    onInterrupted: () => {},
+    onError: (message) => console.error("[TalkMode]", message),
+  });
+
+  function handleStartTalkMode() {
+    talkMode.startVoice(messages.map(({ role, content }) => ({ role, content })));
   }
 
   async function sendMessage(text: string) {
@@ -473,6 +590,15 @@ function HomeContent() {
                   >
                     <SendIcon />
                   </button>
+                  <button
+                    type="button"
+                    aria-label="Start talk mode"
+                    onClick={handleStartTalkMode}
+                    disabled={talkMode.isVoiceActive}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/5 text-[--color-text-secondary] transition-all hover:bg-black/10 active:scale-95 disabled:opacity-30"
+                  >
+                    <MicIcon className="h-4 w-4" />
+                  </button>
                 </form>
 
                 <div className="flex flex-wrap justify-center gap-2">
@@ -521,8 +647,27 @@ function HomeContent() {
                                   return next;
                                 })
                               }
+                              onSelectVariant={handleVariantCheckout}
                             />
                           ))}
+                        </div>
+                      )}
+                      {m.options && m.options.options.length > 0 && (
+                        <div className="flex flex-col gap-2">
+                          <p className="text-xs font-medium text-[--color-text-tertiary]">{m.options.prompt}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {m.options.options.map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                disabled={isStreaming}
+                                onClick={() => sendMessage(opt.value)}
+                                className="glass-card glass-card-hover press-scale rounded-full px-4 py-2 text-sm font-medium text-[--color-text-secondary] disabled:opacity-40"
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                       {m.letter && <LetterCard letter={m.letter} />}
@@ -561,6 +706,15 @@ function HomeContent() {
                     >
                       <SendIcon />
                     </button>
+                    <button
+                      type="button"
+                      aria-label="Start talk mode"
+                      onClick={handleStartTalkMode}
+                      disabled={talkMode.isVoiceActive}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/5 text-[--color-text-secondary] transition-all hover:bg-black/10 active:scale-95 disabled:opacity-30"
+                    >
+                      <MicIcon className="h-4 w-4" />
+                    </button>
                   </form>
                 </div>
               </div>
@@ -568,6 +722,19 @@ function HomeContent() {
           </div>
         </main>
       </div>
+
+      {talkMode.isVoiceActive && (
+        <TalkModeOverlay
+          connectionState={talkMode.connectionState}
+          isMuted={talkMode.isMuted}
+          isAgentSpeaking={talkMode.isAgentSpeaking}
+          isProcessing={talkMode.isProcessing}
+          interimCaption={talkMode.interimCaption}
+          agentCaption={talkMode.agentCaption}
+          onToggleMute={talkMode.toggleMute}
+          onEndCall={talkMode.stopVoice}
+        />
+      )}
     </div>
   );
 }

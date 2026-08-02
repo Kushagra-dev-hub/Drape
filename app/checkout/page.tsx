@@ -12,6 +12,7 @@ function CheckoutFlow() {
   const searchParams = useSearchParams();
   const messageId = searchParams.get("messageId");
   const giftId = searchParams.get("giftId");
+  const isVariant = searchParams.get("variant");
 
   const [gift, setGift] = useState<GiftCandidate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,33 @@ function CheckoutFlow() {
   // there's nothing for us to gather here beyond confirming the gift.
   useEffect(() => {
     async function loadData() {
+      // Configurable product: the exact size+colour variant was stashed in
+      // sessionStorage by the gift card. Its price/name/image are the real
+      // merchant variant, so use them directly (no DB round-trip needed).
+      if (isVariant) {
+        try {
+          const raw = sessionStorage.getItem("drape-checkout-selection");
+          if (raw) {
+            const sel = JSON.parse(raw);
+            setGift({
+              id: String(sel.variantId || sel.giftId),
+              name: sel.variantTitle ? `${sel.name} — ${sel.variantTitle}` : sel.name,
+              category: "live",
+              price: Number(sel.price) || 0,
+              merchant: sel.merchant || "",
+              deliveryDays: Number(sel.deliveryDays) || 5,
+              tags: [],
+              emoji: "🎁",
+              imageUrl: sel.imageUrl || undefined,
+            });
+          }
+        } catch {
+          // fall through to the "gift not found" screen
+        }
+        setLoading(false);
+        return;
+      }
+
       if (messageId && giftId) {
         const { data, error } = await supabase
           .from("messages")
