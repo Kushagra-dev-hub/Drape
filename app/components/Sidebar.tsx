@@ -7,7 +7,6 @@ import type { Profile } from "./Navbar";
 import {
   ArrowUpRightIcon,
   CalendarIcon,
-  ChatBubbleIcon,
   ChevronRightIcon,
   ClockIcon,
   CloseIcon,
@@ -15,7 +14,6 @@ import {
   HamburgerIcon,
   LogoutIcon,
   PlusIcon,
-  SearchIcon,
   SettingsIcon,
   TrashIcon,
   UserIcon,
@@ -219,27 +217,16 @@ export function Sidebar({
           >
             <PlusIcon className="h-[18px] w-[18px]" />
           </button>
-          <button
-            type="button"
-            onClick={onToggle}
-            title="Search"
-            aria-label="Search"
-            className={railIconButton}
-          >
-            <SearchIcon className="h-[18px] w-[18px]" />
-          </button>
-          <button
-            type="button"
-            onClick={onToggle}
-            title="Chat History"
-            aria-label="Chat History"
-            className={railIconButton}
-          >
-            <ChatBubbleIcon className="h-[18px] w-[18px]" />
-          </button>
-          <Link href="/calendar" title="Calendar" aria-label="Calendar" className={railIconButton}>
+          {/* Mirrors the expanded nav exactly — same icons, same order. The
+              static items are mapped from one array so the two can't drift. */}
+          <Link href="/calendar" title="Upcoming Events" aria-label="Upcoming Events" className={railIconButton}>
             <CalendarIcon className="h-[18px] w-[18px]" />
           </Link>
+          {STATIC_NAV_ITEMS.map(({ label, icon: Icon, href }) => (
+            <Link key={label} href={href} title={label} aria-label={label} className={railIconButton}>
+              <Icon className="h-[18px] w-[18px]" />
+            </Link>
+          ))}
 
           <div className="flex-1" />
 
