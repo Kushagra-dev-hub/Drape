@@ -1,0 +1,11 @@
+{
+  "hints": {
+    "css-prefix-order": "warning",
+    "compat-api/css": [
+      "warning",
+      {
+        "ignore": ["scrollbar-width", "scrollbar-color"]
+      }
+    ]
+  }
+}

@@ -104,15 +104,15 @@ body {
    ───────────────────────────────────────────────────────────── */
 .glass-panel {
   background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(var(--glass-blur-heavy));
   -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
+  backdrop-filter: blur(var(--glass-blur-heavy));
   border-right: 1px solid var(--color-border);
 }
 
 .glass-card {
   background: var(--color-surface-card);
-  backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
 }
@@ -131,8 +131,8 @@ body {
 
 .glass-input {
   background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--color-border);
   transition: border-color var(--duration-fast) ease,
               box-shadow var(--duration-fast) ease,
@@ -292,6 +292,11 @@ body {
 /* ─────────────────────────────────────────────────────────────
    SCROLLBAR
    ───────────────────────────────────────────────────────────── */
+/* scrollbar-width/-color are progressive enhancement: every browser that lacks
+   them (Safari, Chrome < 121, Samsung Internet) is covered by the
+   ::-webkit-scrollbar rules paired with each class below. The Edge Tools compat
+   hint can't see that pairing, so it's scoped off for these two properties in
+   .hintrc — keep the webkit fallbacks in sync if you change either class. */
 .scrollbar-hide {
   scrollbar-width: none;
   -ms-overflow-style: none;

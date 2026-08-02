@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ConversationSummary } from "@/lib/supabase/conversations";
+import { Modal } from "./Modal";
 import type { Profile } from "./Navbar";
 import {
   ArrowUpRightIcon,
@@ -119,39 +120,36 @@ export function Sidebar({
       </div>
     );
 
-  const profileModal = modalOpen && profile && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setModalOpen(false)}>
-      <div 
-        className="flex w-full max-w-2xl flex-col gap-8 rounded-3xl border border-[--color-border] bg-[#F9FAFB] p-8 shadow-2xl animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight text-[--color-text]">Profile</h2>
-          <button
-            type="button"
-            onClick={() => setModalOpen(false)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-[--color-text-secondary] transition-colors duration-150 hover:bg-[--color-primary]/8"
-          >
-            <CloseIcon className="h-5 w-5" />
-          </button>
-        </div>
+  const profileModal = profile && (
+    <Modal
+      open={modalOpen}
+      onClose={() => setModalOpen(false)}
+      label="Profile"
+      width={560}
+      cardStyle={{ padding: "76px 26px 26px", background: "#F9FAFB" }}
+    >
+      {/* No maxHeight/overflow: the content is sized to fit, and PopupPeek
+          scales the whole stage down rather than introducing a scrollbar.
+          Dismiss by clicking the scrim or pressing Escape — no close button. */}
+      <div className="flex w-full flex-col gap-5">
+        <h2 className="text-2xl font-bold tracking-tight text-[--color-text]">Profile</h2>
 
         {/* User Card */}
-        <section className="flex items-center gap-6 rounded-3xl bg-white p-8 border border-black/5 shadow-sm">
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-4xl font-bold text-amber-900 shadow-sm">
+        <section className="flex items-center gap-4 rounded-2xl bg-white p-5 border border-black/5 shadow-sm">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-amber-200 to-rose-300 text-2xl font-bold text-amber-900 shadow-sm">
             {profile.initial}
           </div>
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="truncate text-3xl font-bold text-[--color-text]">{profile.name}</h1>
+            <h1 className="truncate text-xl font-bold text-[--color-text]">{profile.name}</h1>
           </div>
         </section>
 
         {/* Contact Details */}
-        <section className="flex flex-col gap-4">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-[--color-text-tertiary] px-2">Contact Details</h3>
+        <section className="flex flex-col gap-2.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text-tertiary] px-2">Contact Details</h3>
           
           <div className="flex flex-col rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4">
               <div className="flex flex-col mb-3 sm:mb-0">
                 <span className="text-sm font-semibold text-[--color-text]">Email Address</span>
                 <span className="text-sm text-[--color-text-secondary] mt-1">{profile.email || "No email"}</span>
@@ -161,14 +159,14 @@ export function Sidebar({
         </section>
 
         {/* Integrated Services */}
-        <section className="flex flex-col gap-4">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-[--color-text-tertiary] px-2">Integrated Services</h3>
+        <section className="flex flex-col gap-2.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text-tertiary] px-2">Integrated Services</h3>
 
           <div className="flex flex-col rounded-2xl border border-black/5 bg-white overflow-hidden shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4">
               <div className="flex items-center gap-4 mb-3 sm:mb-0">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[--color-surface]">
-                  <GoogleIcon className="h-6 w-6" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[--color-surface]">
+                  <GoogleIcon className="h-5 w-5" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-semibold text-[--color-text]">Google Calendar</span>
@@ -185,7 +183,7 @@ export function Sidebar({
         </section>
 
       </div>
-    </div>
+    </Modal>
   );
 
   if (!open) {
