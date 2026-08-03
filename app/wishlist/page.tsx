@@ -89,19 +89,7 @@ export default function WishlistPage() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-12">
-        <Navbar
-          profile={profile}
-          title={
-            <>
-              Wishlist
-              {items.length > 0 && (
-                <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
-                  {items.length}
-                </span>
-              )}
-            </>
-          }
-        />
+        <Navbar profile={profile} title="Wishlist" />
 
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center animate-fade-up">
