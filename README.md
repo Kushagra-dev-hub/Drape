@@ -42,8 +42,11 @@ flowchart LR
 
 ## 💡 The solution — Memento
 
-You do not fill forms or scroll grids. You **talk to Memento like a thoughtful friend**, and it does
-the remembering, the finding, and the paying, safely.
+You do not fill forms or scroll grids. You **talk to Memento like a thoughtful friend**, and it does the remembering, the finding, and the paying, safely.
+
+Under the hood, an **OpenAI gpt-4o agent** with real tool-calling reads what you actually mean, asks only for what it is missing, and searches **live Shopify merchant catalogues over UCP** to pull real products with real **size and colour** variants, not a mock list. When you check out, there is **no card field anywhere in the app**. Memento opens **Prava**, you approve with a **passkey**, and Prava issues a **one-time credential that is scoped to that single merchant and capped at that single amount**. Your real card number never touches Memento or the shop, and because the spending limit lives **inside the credential and not in a prompt**, the agent literally **cannot overspend**.
+
+And it does not stop at reminders. Because it reads your **Google Calendar**, Memento knows every occasion before it arrives. Arm it once with a **Prava mandate** (approved a single time with your passkey, scoped to a merchant and capped with a price ceiling and a validity window) and it can then **order the gift on its own** when the day comes, much like a **UPI AutoPay**: autonomous, but always inside the limits you set. So the whole loop, remembering, choosing, and paying, can run **without you lifting a finger**, and still stay completely safe by design.
 
 ```mermaid
 flowchart LR
