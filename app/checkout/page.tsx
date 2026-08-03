@@ -96,21 +96,34 @@ function CheckoutFlow() {
   const saveOrder = async (status: string, txn?: string, orderId?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !gift) return;
-    try {
-      await supabase.from("orders").insert({
-        user_id: user.id,
-        gift_id: gift.id,
-        gift_name: gift.name,
-        gift_image_url: gift.imageUrl || null,
-        merchant: gift.merchant,
-        price: gift.price,
-        delivery_days: gift.deliveryDays,
-        status,
-        prava_txn: txn || null,
-        prava_order: orderId || null,
-      });
-    } catch (e) {
-      console.warn("[checkout] saveOrder failed:", e);
+
+    // The base columns every orders table has.
+    const base = {
+      user_id: user.id,
+      gift_id: gift.id,
+      gift_name: gift.name,
+      gift_image_url: gift.imageUrl || null,
+      merchant: gift.merchant,
+      price: gift.price,
+      delivery_days: gift.deliveryDays,
+      status,
+    };
+
+    // Supabase does NOT throw on a DB error — it returns { error }. So we must
+    // read it, or a failed insert vanishes silently. Try with the Prava columns
+    // first; if the schema doesn't have them, retry with just the base columns
+    // so the gift still lands in My Gifts regardless of migration state.
+    let { error } = await supabase
+      .from("orders")
+      .insert({ ...base, prava_txn: txn || null, prava_order: orderId || null });
+
+    if (error) {
+      console.warn("[checkout] saveOrder (with prava cols) failed:", error.message);
+      ({ error } = await supabase.from("orders").insert(base));
+    }
+    if (error) {
+      console.error("[checkout] saveOrder failed:", error.message);
+      alert("Payment went through, but saving the order failed. Check that the 'orders' table exists with the right RLS policy.");
     }
   };
 
