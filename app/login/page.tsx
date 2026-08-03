@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Suspense, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Script from "next/script";
-import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ArrowLeftIcon } from "@/app/components/icons";
 
@@ -20,6 +20,24 @@ const CAPTION = {
 } as const;
 
 type PipState = keyof typeof CAPTION;
+type Mode = "signin" | "signup";
+
+const COPY: Record<Mode, { heading: string; subtitle: string; cta: string; toggleHint: string; toggleLabel: string }> = {
+  signin: {
+    heading: "Welcome back",
+    subtitle: "Sign in to continue finding perfect gifts.",
+    cta: "Login",
+    toggleHint: "New to Memento?",
+    toggleLabel: "Sign up",
+  },
+  signup: {
+    heading: "Create your account",
+    subtitle: "Join Memento to start finding perfect gifts.",
+    cta: "Create account",
+    toggleHint: "Already have an account?",
+    toggleLabel: "Login",
+  },
+};
 
 // @supabase/ssr always uses the PKCE flow and can't be configured out of it,
 // even for plain email/password auth that never exchanges a code. Every
@@ -37,18 +55,29 @@ function clearPkceVerifierCookies() {
   });
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
+  const [mode, setMode] = useState<Mode>(searchParams.get("tab") === "signup" ? "signup" : "signin");
   const [pipState, setPipState] = useState<PipState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
+  const copy = COPY[mode];
+  const isSignup = mode === "signup";
+
+  function selectMode(m: Mode) {
+    setMode(m);
+    setPipState("idle");
+    setError(null);
+  }
 
   function handleTextInput() {
     setPipState("typing");
@@ -88,7 +117,13 @@ export default function LoginPage() {
 
     clearPkceVerifierCookies();
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: authError } = isSignup
+      ? await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: nameRef.current?.value.trim() ?? "" } },
+        })
+      : await supabase.auth.signInWithPassword({ email, password });
 
     setLoading(false);
 
@@ -130,16 +165,42 @@ export default function LoginPage() {
 
       {/* Form panel */}
       <div className="flex w-full items-center justify-center px-8 md:w-1/2">
-        <div className="flex w-full max-w-md flex-col gap-8 animate-fade-up">
+        <div className="flex w-full max-w-md flex-col gap-4 animate-fade-up">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 text-xl font-semibold tracking-tight text-[--color-text]">
             <Image src="/logo.png" alt="Memento" width={44} height={44} className="h-11 w-auto" priority />
             <span>Memento</span>
           </Link>
 
+          {/* Login / Sign up tabs */}
+          <div className="flex gap-6">
+            <button
+              type="button"
+              onClick={() => selectMode("signin")}
+              className={`border-b-2 pb-1.5 text-sm font-semibold transition-colors duration-200 ${
+                mode === "signin"
+                  ? "border-[--color-accent-lavender] text-[--color-text]"
+                  : "border-transparent text-[--color-text-tertiary] hover:text-[--color-text-secondary]"
+              }`}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => selectMode("signup")}
+              className={`border-b-2 pb-1.5 text-sm font-semibold transition-colors duration-200 ${
+                mode === "signup"
+                  ? "border-[--color-accent-lavender] text-[--color-text]"
+                  : "border-transparent text-[--color-text-tertiary] hover:text-[--color-text-secondary]"
+              }`}
+            >
+              Sign up
+            </button>
+          </div>
+
           <div>
-            <h1 className="text-4xl font-bold tracking-tight text-[--color-text]">Welcome back</h1>
-            <p className="mt-2 text-sm text-[--color-text-secondary]">Sign in to continue finding perfect gifts.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-[--color-text]">{copy.heading}</h1>
+            <p className="mt-1 text-sm text-[--color-text-secondary]">{copy.subtitle}</p>
           </div>
 
           {/* Google — handles both sign-in and sign-up */}
@@ -168,7 +229,25 @@ export default function LoginPage() {
           </div>
 
           {/* Email / password form */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            {isSignup && (
+              <label className="flex flex-col gap-2 text-sm font-medium text-[--color-text]">
+                Name
+                <input
+                  ref={nameRef}
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Jane Doe"
+                  required
+                  suppressHydrationWarning
+                  onFocus={() => setPipState("email")}
+                  onBlur={() => setPipState("idle")}
+                  onChange={handleTextInput}
+                  className={inputClass}
+                />
+              </label>
+            )}
+
             <label className="flex flex-col gap-2 text-sm font-medium text-[--color-text]">
               Email
               <input
@@ -190,7 +269,7 @@ export default function LoginPage() {
               <input
                 ref={passwordRef}
                 type="password"
-                autoComplete="current-password"
+                autoComplete={isSignup ? "new-password" : "current-password"}
                 placeholder="••••••••"
                 required
                 minLength={6}
@@ -215,23 +294,30 @@ export default function LoginPage() {
               onMouseLeave={() => setPipState((s) => (s === "hover" ? "idle" : s))}
               className="gradient-button press-scale mt-1 rounded-full px-5 py-3.5 text-[15px] font-semibold text-white disabled:opacity-60"
             >
-              {loading ? "Signing in…" : "Login"}
+              {loading ? (isSignup ? "Creating account…" : "Signing in…") : copy.cta}
             </button>
           </form>
 
-          <p className="text-center text-sm text-[--color-text-secondary] mt-2">
-            New to Memento?{" "}
+          <p className="text-center text-sm text-[--color-text-secondary]">
+            {copy.toggleHint}{" "}
             <button
               type="button"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="font-semibold text-[--color-text] underline-offset-2 transition-colors duration-200 hover:text-[--color-primary-muted] hover:underline disabled:opacity-50"
+              onClick={() => selectMode(isSignup ? "signin" : "signup")}
+              className="font-semibold text-[--color-text] underline-offset-2 transition-colors duration-200 hover:text-[--color-primary-muted] hover:underline"
             >
-              Sign up using Google
+              {copy.toggleLabel}
             </button>
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }
