@@ -12,7 +12,7 @@ Your card is never exposed, and the agent can never overspend.**
 
 _OpenAI gpt-4o · Prava scoped-credential payments · Shopify UCP merchants · Google Calendar_
 
-🔗 **Live:** https://drape-piyushagarwal-55s-projects.vercel.app
+🔗 **Live:** https://drape-o5rh.onrender.com/
 
 </div>
 
