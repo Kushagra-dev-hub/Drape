@@ -1,4 +1,8 @@
-import { google, type calendar_v3 } from "googleapis";
+// Import only the Calendar API client, not the full `googleapis` package —
+// that package eagerly requires all 300+ Google API clients at import time
+// (~200MB), which was enough to OOM a memory-constrained production instance
+// for an app that only ever talks to Calendar.
+import { calendar as calendarClient, auth, type calendar_v3 } from "@googleapis/calendar";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getGoogleTokens, deleteGoogleTokens } from "@/lib/supabase/google-tokens";
 
@@ -65,7 +69,7 @@ export async function getUpcomingOccasions(
   if (!tokenRow) return [];
 
   try {
-    const oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URI
@@ -77,7 +81,7 @@ export async function getUpcomingOccasions(
       expiry_date: new Date(tokenRow.expires_at).getTime(),
     });
 
-    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+    const calendar = calendarClient({ version: "v3", auth: oauth2Client });
 
     const now = new Date();
     const future = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
